@@ -70,8 +70,11 @@ const ReviewLanding = () => {
             const reviews = await generateAIReviews(
               campaignData.business_description,
               category,
+                  {
                     numberOfReviews: 3,
-      excludeReviews: [],            );
+                    excludeReviews: [],
+                        }
+                  );
             setAllSuggestions(reviews);
             if (reviews.length > 0) {
               setSelectedSuggestion(reviews[0]);
@@ -230,8 +233,10 @@ const ReviewLanding = () => {
       const newReviews = await generateAIReviews(
         campaign.business_description,
         campaign.category || 'Professional Services',
-        3
-      );
+      {
+        numberOfReviews: 3,
+        excludeReviews: []
+      }      );
       setAllSuggestions(newReviews);
       setCurrentSuggestionIndex(0);
       setSelectedSuggestion(newReviews[0] || '');
