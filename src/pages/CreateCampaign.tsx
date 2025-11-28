@@ -29,6 +29,7 @@ const campaignSchema = z.object({
   googleReviewUrl: z.string().url("Please enter a valid Google review URL"),
   customMessage: z.string().max(500, "Message must be less than 500 characters").optional(),
   businessCategory: z.string().min(1, "Please select a business category"),
+    businessDescription: z.string().min(10, "Business description must be at least 10 characters").max(1000, "Max 1000 characters"),
   theme: z.enum(['lightBlue', 'darkNavy', 'blackGold', 'whiteBlue']).default('lightBlue'),
   logoUrl: z.string().optional(),
 });
@@ -250,6 +251,18 @@ const CreateCampaign = () => {
                   ))}
                 </select>
               </div>
+                      <div className="mb-4">
+          <Label htmlFor="businessDescription">Business Description *</Label>
+          <Textarea
+            id="businessDescription"
+            placeholder="Describe your business, products/services, and what makes you unique..."
+            className="w-full h-24"
+            {...register("businessDescription")}
+          />
+          {errors.businessDescription && (
+            <p className="text-red-500 text-sm mt-1">{errors.businessDescription.message}</p>
+          )}
+        </div>
               <div className="border border-dashed border-blue-300 rounded-lg p-6 bg-blue-50">
                 <Label htmlFor="logoFile">Business Logo (Optional)</Label>
                 <div className="mt-4">
