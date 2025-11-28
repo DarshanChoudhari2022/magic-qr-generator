@@ -381,6 +381,13 @@ const ReviewLanding = () => {
               </div>
             )}
           </CardContent>
+            : (
+              <div className="p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-200">
+                <div className="flex items-center justify-center">
+                  <p className="text-gray-600 text-sm">Generating AI suggestions...</p>
+                </div>
+              </div>
+            )
         </Card>
 
         <Button
