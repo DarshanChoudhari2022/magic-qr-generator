@@ -1,4 +1,5 @@
 'use client';
+// UPDATED: Added 3 AI suggestions with Next and More AI Reviews buttons
 
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
