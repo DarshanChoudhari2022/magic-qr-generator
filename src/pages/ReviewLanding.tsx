@@ -14,60 +14,31 @@ const ReviewLanding = () => {
   const { campaignId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+
   const [campaign, setCampaign] = useState<any>(null);
   const [location, setLocation] = useState<any>(null);
+
   const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState(false);
+  const [generating, setGenerating] = useState(false); // for opening Google review
+  const [generatingReviews, setGeneratingReviews] = useState(false); // for AI review generation
+
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+
+  const [allSuggestions, setAllSuggestions] = useState<string[]>([]);
+  const [currentSuggestionIndex, setCurrentSuggestionIndex] = useState(0);
   const [selectedSuggestion, setSelectedSuggestion] = useState<string>('');
-
-  const suggestionsMap: Record<string, string[]> = {
-    'Restaurant/Cafe': [
-      'Amazing food quality and exceptional service! The ambiance is perfect for dining. Highly recommended!',
-      'Fresh ingredients, delicious flavors, and friendly staff. Best dining experience in town!',
-    ],
-    'Retail Store': [
-      'Great product selection and competitive prices. Excellent customer service experience!',
-      'Wide variety of products with helpful staff. Will definitely come back again!',
-    ],
-    'Healthcare': [
-      'Professional doctors and caring staff. Clean facility with excellent patient care!',
-      'Highly experienced team with modern facilities. Great healthcare experience!',
-    ],
-    'Automotive': [
-      'Expert technicians with quality service. Fair pricing and quick turnaround time!',
-      'Professional workmanship and reliable service. Best mechanic shop in the area!',
-    ],
-    'Beauty Salon': [
-      'Talented stylists and modern techniques. Relaxing atmosphere with excellent results!',
-      'Professional beauty services with attention to detail. Highly recommend!',
-    ],
-    'Fitness': [
-      'State-of-the-art equipment with friendly trainers. Great fitness community!',
-      'Professional staff and clean facility. Best gym in the neighborhood!',
-    ],
-    'Real Estate': [
-      'Professional agents with excellent market knowledge. Smooth buying experience!',
-      'Expert guidance throughout the process. Highly trustworthy and reliable!',
-    ],
-    'Professional Services': [
-      'Expert service with attention to detail. Excellent communication and results!',
-      'Professional approach with timely delivery. Highly satisfied with the service!',
-    ],
-  };
-
-  const getRandomSuggestion = (category: string): string => {
-    const suggestions = suggestionsMap[category] || suggestionsMap['Professional Services'];
-    const randomIndex = Math.floor(Math.random() * suggestions.length);
-    return suggestions[randomIndex];
-  };
 
   useEffect(() => {
     const loadCampaign = async () => {
       try {
         setLoading(true);
+
         if (!campaignId) {
-          toast({ title: 'Error', description: 'Campaign ID not found', variant: 'destructive' });
+          toast({
+            title: 'Error',
+            description: 'Campaign ID not found',
+            variant: 'destructive',
+          });
           setLoading(false);
           return;
         }
@@ -80,7 +51,11 @@ const ReviewLanding = () => {
 
         if (campaignError || !campaignData) {
           console.error('Error loading campaign:', campaignError);
-          toast({ title: 'Campaign Not Found', description: 'This review campaign is no longer available', variant: 'destructive' });
+          toast({
+            title: 'Campaign Not Found',
+            description: 'This review campaign is no longer available',
+            variant: 'destructive',
+          });
           setLoading(false);
           return;
         }
@@ -88,9 +63,29 @@ const ReviewLanding = () => {
         console.log('Campaign loaded:', campaignData);
         setCampaign(campaignData);
 
-        const category = campaignData.category || 'Professional Services';
-        const randomSuggestion = getRandomSuggestion(category);
-        setSelectedSuggestion(randomSuggestion);
+        // 🔹 NEW: Generate AI reviews based on business_description & category
+        if (campaignData.business_description) {
+          const category = campaignData.category || 'Professional Services';
+          try {
+            const reviews = await generateAIReviews(
+              campaignData.business_description,
+              category,
+              3
+            );
+            setAllSuggestions(reviews);
+            if (reviews.length > 0) {
+              setSelectedSuggestion(reviews[0]);
+              setCurrentSuggestionIndex(0);
+            }
+          } catch (error) {
+            console.error('Failed to generate reviews:', error);
+            toast({
+              title: 'Error',
+              description: 'Failed to generate AI reviews. Please try again.',
+              variant: 'destructive',
+            });
+          }
+        }
 
         if (campaignData.location_id) {
           const { data: locationData } = await supabase
@@ -103,23 +98,33 @@ const ReviewLanding = () => {
           }
         }
 
-        supabase.from('scan_events').insert([
-          {
-            campaign_id: campaignId,
-            event_type: 'scan',
-            device_type: /Mobile|Android|iPhone/.test(navigator.userAgent) ? 'mobile' : 'desktop',
-            timestamp: new Date().toISOString(),
-          },
-        ]).then(() => {
-          console.log('Scan event recorded');
-        }).catch(err => {
-          console.error('Error recording scan:', err);
-        });
+        supabase
+          .from('scan_events')
+          .insert([
+            {
+              campaign_id: campaignId,
+              event_type: 'scan',
+              device_type: /Mobile|Android|iPhone/.test(navigator.userAgent)
+                ? 'mobile'
+                : 'desktop',
+              timestamp: new Date().toISOString(),
+            },
+          ])
+          .then(() => {
+            console.log('Scan event recorded');
+          })
+          .catch((err) => {
+            console.error('Error recording scan:', err);
+          });
 
         setLoading(false);
       } catch (error) {
         console.error('Error in loadCampaign:', error);
-        toast({ title: 'Error', description: 'Failed to load campaign details', variant: 'destructive' });
+        toast({
+          title: 'Error',
+          description: 'Failed to load campaign details',
+          variant: 'destructive',
+        });
         setLoading(false);
       }
     };
@@ -128,19 +133,33 @@ const ReviewLanding = () => {
   }, [campaignId, toast]);
 
   const handleCopyToClipboard = (text: string, index: number) => {
-    navigator.clipboard.writeText(text).then(() => {
-      setCopiedIndex(index);
-      toast({ title: 'Copied!', description: 'Review suggestion copied to clipboard' });
-      setTimeout(() => setCopiedIndex(null), 2000);
-    }).catch(err => {
-      console.error('Copy failed:', err);
-      toast({ title: 'Error', description: 'Failed to copy', variant: 'destructive' });
-    });
+    navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        setCopiedIndex(index);
+        toast({
+          title: 'Copied!',
+          description: 'Review suggestion copied to clipboard',
+        });
+        setTimeout(() => setCopiedIndex(null), 2000);
+      })
+      .catch((err) => {
+        console.error('Copy failed:', err);
+        toast({
+          title: 'Error',
+          description: 'Failed to copy',
+          variant: 'destructive',
+        });
+      });
   };
 
   const handleOpenGoogleReview = async () => {
     if (!campaign) {
-      toast({ title: 'Error', description: 'Campaign data not loaded', variant: 'destructive' });
+      toast({
+        title: 'Error',
+        description: 'Campaign data not loaded',
+        variant: 'destructive',
+      });
       return;
     }
 
@@ -149,33 +168,86 @@ const ReviewLanding = () => {
     console.log('Google review URL:', googleReviewUrl);
 
     if (!googleReviewUrl) {
-      toast({ title: 'Error', description: 'Review URL not available. Please contact support.', variant: 'destructive' });
+      toast({
+        title: 'Error',
+        description: 'Review URL not available. Please contact support.',
+        variant: 'destructive',
+      });
       return;
     }
 
     try {
       setGenerating(true);
-      supabase.from('conversion_events').insert([
-        {
-          campaign_id: campaignId,
-          converted: true,
-          timestamp: new Date().toISOString(),
-        },
-      ]).then(() => {
-        console.log('Conversion event recorded');
-      }).catch(err => {
-        console.error('Error recording conversion:', err);
-      });
+      supabase
+        .from('conversion_events')
+        .insert([
+          {
+            campaign_id: campaignId,
+            converted: true,
+            timestamp: new Date().toISOString(),
+          },
+        ])
+        .then(() => {
+          console.log('Conversion event recorded');
+        })
+        .catch((err) => {
+          console.error('Error recording conversion:', err);
+        });
 
       const url = googleReviewUrl;
       console.log('Opening URL:', url);
       window.open(url, '_blank');
-      toast({ title: 'Success', description: 'Opening Google review page...' });
+      toast({
+        title: 'Success',
+        description: 'Opening Google review page...',
+      });
     } catch (error) {
       console.error('Error in handleOpenGoogleReview:', error);
-      toast({ title: 'Error', description: 'Failed to open review page', variant: 'destructive' });
+      toast({
+        title: 'Error',
+        description: 'Failed to open review page',
+        variant: 'destructive',
+      });
     } finally {
       setGenerating(false);
+    }
+  };
+
+  // 🔹 NEW: Cycle through the 3 AI suggestions
+  const handleNextSuggestion = () => {
+    if (!allSuggestions.length) return;
+    const nextIndex = (currentSuggestionIndex + 1) % allSuggestions.length;
+    setCurrentSuggestionIndex(nextIndex);
+    setSelectedSuggestion(allSuggestions[nextIndex]);
+  };
+
+  // 🔹 NEW: Fetch 3 fresh AI suggestions
+  const handleMoreAIReviews = async () => {
+    if (!campaign?.business_description) return;
+
+    try {
+      setGeneratingReviews(true);
+      const newReviews = await generateAIReviews(
+        campaign.business_description,
+        campaign.category || 'Professional Services',
+        3
+      );
+      setAllSuggestions(newReviews);
+      setCurrentSuggestionIndex(0);
+      setSelectedSuggestion(newReviews[0] || '');
+      toast({
+        title: 'Success!',
+        description: 'Generated 3 new AI reviews',
+      });
+    } catch (error) {
+      console.error('Failed to generate reviews:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to generate reviews',
+        variant: 'destructive',
+      });
+    } finally {
+      setGeneratingReviews(false);
     }
   };
 
@@ -199,7 +271,9 @@ const ReviewLanding = () => {
             <CardDescription>This review campaign is no longer available.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => navigate('/')} className="w-full">Return Home</Button>
+            <Button onClick={() => navigate('/')} className="w-full">
+              Return Home
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -216,11 +290,17 @@ const ReviewLanding = () => {
         <div className="text-center mb-8">
           {logoUrl && (
             <div className="flex justify-center mb-4">
-              <img src={logoUrl} alt={businessName} className="h-24 w-24 rounded-full object-cover shadow-lg border-4 border-white" />
+              <img
+                src={logoUrl}
+                alt={businessName}
+                className="h-24 w-24 rounded-full object-cover shadow-lg border-4 border-white"
+              />
             </div>
           )}
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Help Us Improve!</h1>
-          <p className="text-lg text-gray-600 mb-1"><strong>{businessName}</strong></p>
+          <p className="text-lg text-gray-600 mb-1">
+            <strong>{businessName}</strong>
+          </p>
           <p className="text-sm text-gray-500">Share your experience on Google</p>
         </div>
 
@@ -230,7 +310,9 @@ const ReviewLanding = () => {
               <Sparkles className="w-5 h-5" />
               <CardTitle>AI-Powered Review Suggestion</CardTitle>
             </div>
-            <CardDescription className="text-indigo-100">Tap to copy and paste on Google</CardDescription>
+            <CardDescription className="text-indigo-100">
+              Tap to copy and paste on Google
+            </CardDescription>
           </CardHeader>
           <CardContent className="pt-6">
             {selectedSuggestion && (
@@ -238,7 +320,9 @@ const ReviewLanding = () => {
                 <div className="flex items-start gap-3">
                   <Star className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
                   <div className="flex-1">
-                    <p className="text-gray-800 text-sm leading-relaxed">{selectedSuggestion}</p>
+                    <p className="text-gray-800 text-sm leading-relaxed">
+                      {selectedSuggestion}
+                    </p>
                     <button
                       onClick={() => handleCopyToClipboard(selectedSuggestion, 0)}
                       className="mt-2 flex items-center gap-2 text-indigo-600 hover:text-indigo-700 text-sm font-semibold"
@@ -255,6 +339,38 @@ const ReviewLanding = () => {
                         </>
                       )}
                     </button>
+
+                    {/* Controls for cycling & regenerating AI reviews */}
+                    <div className="mt-4 flex flex-wrap gap-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleNextSuggestion}
+                        disabled={!allSuggestions.length}
+                      >
+                        Next Suggestion
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={handleMoreAIReviews}
+                        disabled={generatingReviews || !campaign?.business_description}
+                      >
+                        {generatingReviews ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Generating...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="w-4 h-4 mr-2" />
+                            More AI Reviews
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
