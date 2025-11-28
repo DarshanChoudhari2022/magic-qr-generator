@@ -1,0 +1,55 @@
+{
+  "landing": {
+    "hero_title": "Collect 10X More Google Reviews — Instantly",
+    "hero_subtitle": "One Scan. One Tap. Ready-made AI suggestions and auto-reply on every review. Boost trust and local SEO with Smart CONNECT QR + Free NFC Card.",
+    "get_qr_button": "Get My Smart CONNECT QR",
+    "order_button": "Order Now",
+    "trusted_by": "Trusted by 10,000+ businesses"
+  },
+  "features": {
+    "title": "Why Choose Magic QR?",
+    "ai_powered": "AI-Powered Suggestions",
+    "ai_powered_desc": "Ready-made review texts in seconds",
+    "instant_post": "Instant Posting",
+    "instant_post_desc": "Direct to Google, no delays",
+    "multi_language": "Multi-Language",
+    "multi_language_desc": "English, हिंदी, मराठी",
+    "auto_reply": "Smart Auto-Reply",
+    "auto_reply_desc": "Every review gets AI response",
+    "nfc_cards": "Free NFC Card",
+    "nfc_cards_desc": "Tap-to-review for in-person",
+    "analytics": "Real-Time Analytics",
+    "analytics_desc": "Track performance by location"
+  },
+  "review": {
+    "rate_us": "Rate Your Experience",
+    "select_suggestion": "Choose a review or write your own",
+    "custom_review": "Write your own review",
+    "post_button": "Post Review",
+    "thank_you": "Thank You!",
+    "review_posted": "Your review has been posted successfully"
+  },
+  "dashboard": {
+    "total_reviews": "Total Reviews",
+    "avg_rating": "Average Rating",
+    "conversion_rate": "Conversion Rate",
+    "recent_reviews": "Recent Reviews",
+    "reviews_by_location": "Reviews by Location"
+  },
+  "pricing": {
+    "title": "Simple Pricing",
+    "starter": "Starter",
+    "professional": "Professional",
+    "enterprise": "Enterprise",
+    "per_year": "/year",
+    "free_nfc": "Free NFC Card"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Something went wrong",
+    "success": "Success!",
+    "cancel": "Cancel",
+    "save": "Save",
+    "close": "Close"
+  }
+}

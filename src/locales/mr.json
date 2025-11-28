@@ -1,0 +1,50 @@
+{
+  "landing": {
+    "hero_title": "10X जास्त Google Reviews तात्काळ मिळवा",
+    "hero_subtitle": "एक स्कॅन। एक टॅप। तयार AI सूचना आणि प्रत्येक review वर auto-reply। भारतीय व्यवसायांसाठी बनवलेले।",
+    "cta_primary": "मोफत सुरू करा",
+    "cta_secondary": "हे कसे काम करते पहा",
+    "trust_message": "संपूर्ण भारतात 5,000+ व्यवसायांनी विश्वास ठेवलेले"
+  },
+  "features": {
+    "title": "वैशिष्ट्ये",
+    "ai_suggestions": "AI-चालित Review सूचना",
+    "ai_suggestions_desc": "ग्राहकांना तात्काळ 3 smart सूचना दाखवा - एका टॅपमध्ये review पूर्ण।",
+    "auto_replies": "Auto-replies (मराठी/इंग्रजी/हिंदी)",
+    "auto_replies_desc": "OpenAI प्रत्येक review चे नैसर्गिकपणे उत्तर देते - कोणताही प्रयत्न नाही।",
+    "whatsapp_alerts": "WhatsApp सूचना",
+    "whatsapp_alerts_desc": "नवीन review मिळाल्यावर WhatsApp वर तात्काळ सूचना मिळवा।",
+    "qr_codes": "अमर्यादित Smart QR codes",
+    "qr_codes_desc": "प्रत्येक ठिकाणासाठी custom QR बनवा। प्रत्येक code ट्रॅक करा।",
+    "analytics": "Real-time Analytics",
+    "analytics_desc": "Conversion rates, स्कॅन, posted reviews पहा।",
+    "gmb_sync": "Google Business एकीकरण",
+    "gmb_sync_desc": "थेट तुमच्या Google Business प्रोफाइलशी जोडा।"
+  },
+  "review_flow": {
+    "rate_experience": "तुमचा अनुभव रेट करा",
+    "suggest_review": "सूचना घ्या",
+    "thank_you": "धन्यवाद!",
+    "review_posted": "तुमची review पोस्ट झाली आहे!"
+  },
+  "dashboard": {
+    "total_scans": "एकूण स्कॅन",
+    "reviews_posted": "Reviews पोस्ट केले",
+    "conversion_rate": "Conversion दर",
+    "recent_reviews": "अलीकडील Reviews"
+  },
+  "pricing": {
+    "starter": "स्टार्टर",
+    "professional": "प्रोफेशनल",
+    "enterprise": "एंटरप्राइझ",
+    "per_year": "दर वर्ष"
+  },
+  "common": {
+    "loading": "लोड होत आहे...",
+    "error": "त्रुटी",
+    "success": "यश",
+    "save": "सेव्ह करा",
+    "cancel": "रद्द करा",
+    "close": "बंद करा"
+  }
+}

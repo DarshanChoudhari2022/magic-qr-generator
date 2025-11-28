@@ -1,0 +1,79 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "search": "Search",
+    "filter": "Filter",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "campaigns": "Campaigns",
+    "analytics": "Analytics",
+    "qrDesigner": "QR Designer",
+    "nfcManagement": "NFC Management",
+    "settings": "Settings"
+  },
+  "analytics": {
+    "title": "Enhanced Analytics",
+    "subtitle": "Track your review performance and insights",
+    "totalScans": "Total Scans",
+    "conversionRate": "Conversion Rate",
+    "averageRating": "Average Rating",
+    "avgTimeToReview": "Avg Time to Review",
+    "qrScans": "QR Scans",
+    "nfcTaps": "NFC Taps",
+    "sourceDistribution": "Review Source Distribution",
+    "ratingDistribution": "Rating Distribution",
+    "dropOffAnalysis": "Drop-off Analysis",
+    "whereUsersAbandon": "Where users abandon the review process"
+  },
+  "qrDesigner": {
+    "title": "QR Code Designer",
+    "subtitle": "Create branded QR codes with custom colors and logos",
+    "designSettings": "Design Settings",
+    "customize": "Customize your QR code appearance",
+    "templateName": "Template Name",
+    "primaryColor": "Primary Color",
+    "backgroundColor": "Background Color",
+    "frameStyle": "Frame Style",
+    "ctaText": "Call-to-Action Text",
+    "logoUpload": "Logo Upload",
+    "saveTemplate": "Save Template",
+    "preview": "Preview",
+    "downloadQR": "Download QR Code"
+  },
+  "nfcManagement": {
+    "title": "NFC Card Management",
+    "subtitle": "Manage and track your NFC cards",
+    "addCard": "Add New NFC Card",
+    "registerCard": "Register a new NFC card for tracking",
+    "cardId": "Card ID",
+    "campaign": "Campaign",
+    "assignedTo": "Assigned To",
+    "tapsCount": "Taps Count",
+    "lastTapped": "Last Tapped",
+    "actions": "Actions",
+    "noCardsYet": "No NFC cards registered yet"
+  },
+  "review": {
+    "scanToReview": "Scan to Review",
+    "leaveReview": "Leave a Review",
+    "thankYou": "Thank you for your feedback!",
+    "rating": "Rating",
+    "reviewText": "Review Text",
+    "submit": "Submit Review"
+  },
+  "auth": {
+    "login": "Login",
+    "logout": "Logout",
+    "signup": "Sign Up",
+    "email": "Email",
+    "password": "Password"
+  }
+}

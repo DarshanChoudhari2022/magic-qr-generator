@@ -1,0 +1,6 @@
+project_id = "soovcksuuqgoxyvavsvx"
+[functions.generate-review-suggestion]
+verify_jwt = false
+
+[functions.track-analytics]
+verify_jwt = false
