@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Star, Sparkles, ExternalLink, Loader2, Copy, Check } from 'lucide-react';
+import { generateAIReviews } from '@/services/aiReviewService';
 
 const ReviewLanding = () => {
   const { campaignId } = useParams();
