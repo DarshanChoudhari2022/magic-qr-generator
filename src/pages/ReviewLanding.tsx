@@ -70,8 +70,8 @@ const ReviewLanding = () => {
             const reviews = await generateAIReviews(
               campaignData.business_description,
               category,
-              3
-            );
+                    numberOfReviews: 3,
+      excludeReviews: [],            );
             setAllSuggestions(reviews);
             if (reviews.length > 0) {
               setSelectedSuggestion(reviews[0]);
