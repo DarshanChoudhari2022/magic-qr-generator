@@ -1,5 +1,4 @@
-// AI Review Service - Calls backend API endpoint
-// Backend handles Gemini API calls securely
+// AI Review Service - Direct Gemini API with timeout
 
 interface GenerateReviewParams {
   businessDescription: string;
@@ -27,8 +26,7 @@ const FALLBACK_REVIEWS_BY_CATEGORY: { [key: string]: string[] } = {
 };
 
 /**
- * Generate AI reviews using backend API endpoint
- * Backend securely handles Gemini API calls with timeout and fallback
+ * Generate AI reviews with 4-second timeout - direct Gemini API call
  */
 export const generateAIReviews = async ({
   businessDescription,
@@ -36,47 +34,72 @@ export const generateAIReviews = async ({
   numberOfReviews = 3,
   excludeReviews = []
 }: GenerateReviewParams): Promise<string[]> => {
-  try {
-    console.log('[AI Review Service] Calling backend API for review generation...', {
-      category,
-      numberOfReviews
-    });
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
-    const response = await fetch('/api/generateReviews', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },,
-        signal: AbortSignal.timeout(5000)
-      body: JSON.stringify({
-        businessDescription,
-        category,
-        numberOfReviews,
-        excludeReviews
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`API error: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-
-    if (data.reviews && Array.isArray(data.reviews) && data.reviews.length > 0) {
-      console.log('[AI Review Service] Successfully generated reviews:', data.reviews.length);
-      return data.reviews;
-    }
-
-    // If API returns empty reviews, use fallback
-    console.warn('[AI Review Service] API returned empty reviews, using fallback');
-    const fallbackReviews = FALLBACK_REVIEWS_BY_CATEGORY[category] || FALLBACK_REVIEWS_BY_CATEGORY['General Business'];
-    return fallbackReviews.slice(0, numberOfReviews);
-  } catch (error) {
-    console.error('[AI Review Service] Error generating reviews:', error);
-    // Always return fallback suggestions on error
-    const fallbackReviews = FALLBACK_REVIEWS_BY_CATEGORY[category] || FALLBACK_REVIEWS_BY_CATEGORY['General Business'];
-    return fallbackReviews.slice(0, numberOfReviews);
+  if (!apiKey) {
+    console.warn('[AI] No API key found, using fallback');
+    const fallback = FALLBACK_REVIEWS_BY_CATEGORY[category] || FALLBACK_REVIEWS_BY_CATEGORY['General Business'];
+    return fallback.slice(0, numberOfReviews);
   }
+
+  // Use a promise race with timeout
+  return new Promise(resolve => {
+    let timeoutId: NodeJS.Timeout | null = null;
+
+    const timeoutPromise = new Promise<string[]>(() => {}).then(() => {
+      const fallback = FALLBACK_REVIEWS_BY_CATEGORY[category] || FALLBACK_REVIEWS_BY_CATEGORY['General Business'];
+      return fallback.slice(0, numberOfReviews);
+    });
+
+    timeoutId = setTimeout(() => {
+      console.warn('[AI] Timeout reached, using fallback');
+      const fallback = FALLBACK_REVIEWS_BY_CATEGORY[category] || FALLBACK_REVIEWS_BY_CATEGORY['General Business'];
+      resolve(fallback.slice(0, numberOfReviews));
+    }, 4000);
+
+    fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  text: `Generate exactly ${numberOfReviews} authentic Google Business review suggestions for: ${businessDescription}\nCategory: ${category}\nEach review: 1-2 sentences, genuine and natural sounding. Return ONLY the reviews, one per line.`
+                }
+              ]
+            }
+          ]
+        })
+      }
+    )
+      .then(res => res.json())
+      .then(data => {
+        if (timeoutId) clearTimeout(timeoutId);
+        if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
+          const reviews = data.candidates[0].content.parts[0].text
+            .split('\n')
+            .map((r: string) => r.trim())
+            .filter((r: string) => r.length > 0 && !excludeReviews.includes(r))
+            .slice(0, numberOfReviews);
+          if (reviews.length > 0) {
+            console.log('[AI] Generated reviews:', reviews.length);
+            resolve(reviews);
+            return;
+          }
+        }
+        const fallback = FALLBACK_REVIEWS_BY_CATEGORY[category] || FALLBACK_REVIEWS_BY_CATEGORY['General Business'];
+        resolve(fallback.slice(0, numberOfReviews));
+      })
+      .catch(err => {
+        console.error('[AI] Error:', err);
+        if (timeoutId) clearTimeout(timeoutId);
+        const fallback = FALLBACK_REVIEWS_BY_CATEGORY[category] || FALLBACK_REVIEWS_BY_CATEGORY['General Business'];
+        resolve(fallback.slice(0, numberOfReviews));
+      });
+  });
 };
 
 export default generateAIReviews;
