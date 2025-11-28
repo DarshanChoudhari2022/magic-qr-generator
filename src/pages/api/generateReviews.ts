@@ -37,9 +37,7 @@ export default async function handler(
 
   try {
     const prompt = `Generate exactly ${numberOfReviews} authentic, unique Google Business review suggestions for: ${businessDescription}
-
 Category: ${category}
-
 Requirements:
 - Each review: 1-2 sentences, genuine and natural sounding
 - Include specific praise
@@ -47,28 +45,24 @@ Requirements:
 - SEO-friendly for Google Business
 - NO quotation marks or bullets
 - NO numbering
-
 Return ONLY the reviews, one per line.`;
 
-    const response = await Promise.race([
-      fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [{ text: prompt }]
-              }
-            ]
-          })
-        }
-      ),
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('API timeout')), 8000)
-      )
-    ]);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }]
+        }),
+        signal: controller.signal
+      }
+    );
+
+    clearTimeout(timeoutId);
 
     const data = await response.json();
 
