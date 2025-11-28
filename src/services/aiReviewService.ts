@@ -1,4 +1,4 @@
-// AI Review Service - Fallback Only (API disabled due to issues)
+// AI Review Service - Fallback Only (API disabled due to issues) - v2
 interface GenerateReviewParams {
   businessDescription: string;
   category: string;
