@@ -11,6 +11,7 @@ import { ArrowLeft, Sparkles, QrCode } from "lucide-react";
 import { z } from "zod";
 import type { User } from "@supabase/supabase-js";
 import { v4 as uuidv4 } from "uuid";
+import { generateAIReviews } from "@/services/aiReviewService";
 
 const CATEGORIES = [
   'Restaurant/Cafe',
@@ -29,9 +30,8 @@ const campaignSchema = z.object({
   googleReviewUrl: z.string().url("Please enter a valid Google review URL"),
   customMessage: z.string().max(500, "Message must be less than 500 characters").optional(),
   businessCategory: z.string().min(1, "Please select a business category"),
-    businessDescription: z.string().min(10, "Business description must be at least 10 characters").max(1000, "Max 1000 characters"),
+  businessDescription: z.string().min(10, "Business description must be at least 10 characters"),
   theme: z.enum(['lightBlue', 'darkNavy', 'blackGold', 'whiteBlue']).default('lightBlue'),
-  logoUrl: z.string().optional(),
 });
 
 const CreateCampaign = () => {
@@ -39,14 +39,17 @@ const CreateCampaign = () => {
   const { toast } = useToast();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
-  const [uploadingLogo, setUploadingLogo] = useState(false);
+
   const [campaignName, setCampaignName] = useState("");
   const [googleReviewUrl, setGoogleReviewUrl] = useState("");
   const [customMessage, setCustomMessage] = useState("");
   const [businessCategory, setBusinessCategory] = useState("");
+  const [businessDescription, setBusinessDescription] = useState("");
   const [theme, setTheme] = useState("lightBlue");
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [aiReviews, setAiReviews] = useState<string[]>([]);
+  const [aiReviewsLoading, setAiReviewsLoading] = useState(false);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -83,10 +86,35 @@ const CreateCampaign = () => {
       console.error('Logo upload error:', error);
       toast({
         title: "Error",
-        description: "Please select an image under 5MB.",
+        description: "Failed to upload logo",
         variant: "destructive",
       });
       return null;
+    }
+  };
+
+  const generateNewAIReviews = async () => {
+    if (!businessCategory || !businessDescription) {
+      toast({
+        title: "Error",
+        description: "Please fill business category and description",
+        variant: "destructive",
+      });
+      return;
+    }
+    setAiReviewsLoading(true);
+    try {
+      const reviews = await generateAIReviews(businessDescription, businessCategory, 3);
+      setAiReviews(reviews);
+    } catch (err: any) {
+      console.error('AI error:', err);
+      toast({
+        title: "Error",
+        description: `AI generation failed: ${err?.message}`,
+        variant: "destructive",
+      });
+    } finally {
+      setAiReviewsLoading(false);
     }
   };
 
@@ -99,24 +127,20 @@ const CreateCampaign = () => {
         googleReviewUrl,
         customMessage: customMessage || undefined,
         businessCategory,
+        businessDescription,
         theme,
       });
 
-      if (!user) {
-        throw new Error("User not authenticated");
-      }
+      if (!user) throw new Error("User not authenticated");
 
-      // Upload logo if provided
       let logoUrl: string | null = null;
       if (logoFile) {
         logoUrl = await uploadLogoToStorage(logoFile);
       }
 
-      // Generate location ID client-side to avoid schema cache issues
       const locationId = uuidv4();
       const shortCode = uuidv4().substring(0, 8).toUpperCase();
 
-      // Create location first without trying to get the response
       const { error: locationError } = await supabase
         .from('locations')
         .insert([{
@@ -126,14 +150,11 @@ const CreateCampaign = () => {
           category: validated.businessCategory,
           google_review_url: validated.googleReviewUrl,
           logo_url: logoUrl,
+          description: validated.businessDescription,
         }]);
 
-      if (locationError) {
-        console.error('Location creation error:', locationError);
-        throw locationError;
-      }
+      if (locationError) throw locationError;
 
-      // Create campaign with the location ID
       const { data: campaignData, error: campaignError } = await supabase
         .from('campaigns')
         .insert([{
@@ -143,37 +164,25 @@ const CreateCampaign = () => {
           short_code: shortCode,
           status: 'active',
           category: validated.businessCategory,
+          business_description: validated.businessDescription,
           theme_color: validated.theme,
         }])
         .select('id')
         .single();
 
-      if (campaignError) {
-        console.error('Campaign creation error:', campaignError);
-        throw campaignError;
-      }
+      if (campaignError) throw campaignError;
 
-      if (!campaignData || !campaignData.id) {
-        throw new Error('Failed to create campaign');
-      }
+      if (!campaignData?.id) throw new Error('Campaign creation failed');
 
-      console.log('Campaign created successfully:', campaignData.id);
-      toast({
-        title: "Success!",
-        description: "Campaign created successfully.",
-        variant: "default",
-      });
-
+      toast({ title: "Success!", description: "Campaign created" });
       setTimeout(() => {
         navigate(`/campaign/${campaignData.id}`);
       }, 1000);
     } catch (error: any) {
-      console.error('Complete error object:', error);
-      console.error('Error message:', error?.message);
-      console.error('Error code:', error?.code);
+      console.error('Error:', error);
       toast({
         title: "Error",
-        description: `Failed to create campaign: ${error?.message || 'Unknown error'}`,
+        description: error?.message || 'Unknown error',
         variant: "destructive",
       });
     } finally {
@@ -209,6 +218,7 @@ const CreateCampaign = () => {
           </Button>
         </div>
       </header>
+
       <main className="container mx-auto px-4 py-8">
         <Card className="max-w-2xl mx-auto">
           <CardHeader className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-t-lg">
@@ -217,7 +227,7 @@ const CreateCampaign = () => {
               <div>
                 <CardTitle className="text-2xl">Create QR Campaign</CardTitle>
                 <CardDescription className="text-blue-100">
-                  Set up your AI-powered Google review collection campaign
+                  AI-powered Google review collection
                 </CardDescription>
               </div>
             </div>
@@ -228,12 +238,13 @@ const CreateCampaign = () => {
                 <Label htmlFor="campaignName">Campaign Name</Label>
                 <Input
                   id="campaignName"
-                  placeholder="e.g., Surajit Auto Garage - Counter 1"
+                  placeholder="Enter campaign name"
                   value={campaignName}
                   onChange={(e) => setCampaignName(e.target.value)}
                   required
                 />
               </div>
+
               <div>
                 <Label htmlFor="businessCategory">Business Category</Label>
                 <select
@@ -243,7 +254,7 @@ const CreateCampaign = () => {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                 >
-                  <option value="">Select your business type...</option>
+                  <option value="">Select business type...</option>
                   {CATEGORIES.map((cat) => (
                     <option key={cat} value={cat}>
                       {cat}
@@ -251,51 +262,21 @@ const CreateCampaign = () => {
                   ))}
                 </select>
               </div>
-                      <div className="mb-4">
-          <Label htmlFor="businessDescription">Business Description *</Label>
-          <Textarea
-            id="businessDescription"
-            placeholder="Describe your business, products/services, and what makes you unique..."
-            className="w-full h-24"
-            {...register("businessDescription")}
-          />
-          {errors.businessDescription && (
-            <p className="text-red-500 text-sm mt-1">{errors.businessDescription.message}</p>
-          )}
-        </div>
-              <div className="border border-dashed border-blue-300 rounded-lg p-6 bg-blue-50">
-                <Label htmlFor="logoFile">Business Logo (Optional)</Label>
-                <div className="mt-4">
-                  <Input
-                    id="logoFile"
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      if (e.target.files?.[0]) {
-                        setLogoFile(e.target.files[0]);
-                      }
-                    }}
-                    disabled={uploadingLogo}
-                  />
-                  <p className="text-sm text-gray-600 mt-2">Or enter logo URL below (max 5MB)</p>
-                </div>
-              </div>
+
               <div>
-                <Label htmlFor="theme">QR Card Theme</Label>
-                <select
-                  id="theme"
-                  value={theme}
-                  onChange={(e) => setTheme(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="lightBlue">💙 Light Blue</option>
-                  <option value="darkNavy">🌊 Dark Navy</option>
-                  <option value="blackGold">🏆 Black Gold</option>
-                  <option value="whiteBlue">✨ White Blue</option>
-                </select>
+                <Label htmlFor="businessDescription">Business Description</Label>
+                <Textarea
+                  id="businessDescription"
+                  placeholder="Describe your business"
+                  className="w-full h-24"
+                  value={businessDescription}
+                  onChange={(e) => setBusinessDescription(e.target.value)}
+                  required
+                />
               </div>
+
               <div>
-                <Label htmlFor="googleReviewUrl">Google Review Link *</Label>
+                <Label htmlFor="googleReviewUrl">Google Review Link</Label>
                 <Input
                   id="googleReviewUrl"
                   type="url"
@@ -305,19 +286,50 @@ const CreateCampaign = () => {
                   required
                 />
               </div>
+
               <div>
                 <Label htmlFor="customMessage">Custom Message (Optional)</Label>
                 <Textarea
                   id="customMessage"
-                  placeholder="Add a custom message to appear on the QR card..."
+                  placeholder="Add custom message"
                   value={customMessage}
                   onChange={(e) => setCustomMessage(e.target.value)}
                   maxLength={500}
                 />
-                <p className="text-sm text-gray-500 mt-2">
-                  {customMessage.length}/500 characters
-                </p>
               </div>
+
+              <div>
+                <Label htmlFor="theme">QR Card Theme</Label>
+                <select
+                  id="theme"
+                  value={theme}
+                  onChange={(e) => setTheme(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="lightBlue">Light Blue</option>
+                  <option value="darkNavy">Dark Navy</option>
+                  <option value="blackGold">Black Gold</option>
+                  <option value="whiteBlue">White Blue</option>
+                </select>
+              </div>
+
+              <Button onClick={generateNewAIReviews} disabled={aiReviewsLoading} className="w-full mb-4" variant="outline">
+                {aiReviewsLoading ? "Generating..." : "Generate AI Reviews"}
+              </Button>
+
+              {aiReviews.length > 0 && (
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <h3 className="font-semibold mb-2">AI Review Suggestions:</h3>
+                  <div className="space-y-2">
+                    {aiReviews.map((review, idx) => (
+                      <div key={idx} className="text-sm p-2 bg-white rounded border">
+                        {review}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="flex gap-4 pt-4">
                 <Button
                   type="submit"
@@ -327,7 +339,7 @@ const CreateCampaign = () => {
                   {loading ? (
                     <>
                       <Sparkles className="h-4 w-4 mr-2 animate-spin" />
-                      Creating Campaign...
+                      Creating...
                     </>
                   ) : (
                     <>
