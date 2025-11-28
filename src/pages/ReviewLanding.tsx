@@ -67,16 +67,16 @@ const ReviewLanding = () => {
         if (campaignData.business_description) {
           const category = campaignData.category || 'Professional Services';
           try {
-            const reviews = await Promise.race([generateAIReviews(
-              campaignData.business_description,
-              category,
-                  {
-                    numberOfReviews: 3,
-                    excludeReviews: [],
-                        }
-                  );,
-        new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),5000))
-      ])
+const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+        const reviews = await generateAIReviews({
+          campaignData: campaignData.business_description,
+          category,
+          numberOfReviews: 3,
+          excludeReviews: [],
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
 const suggestionsToSet = reviews && reviews.length > 0 ? reviews : ['Professional service and genuine care for my vehicle. Highly satisfied!', 'Excellent work on my car maintenance. Pricing was fair and fair. Would recommend.', 'Outstanding service! Fixed it right the first time.'];
             setAllSuggestions(suggestionsToSet);
             setSelectedSuggestion(suggestionsToSet[0]);
