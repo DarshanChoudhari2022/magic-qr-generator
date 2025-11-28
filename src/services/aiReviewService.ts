@@ -119,6 +119,10 @@ export const generateAIReviews = async ({
     });
 
     const apiKey = import.meta.env.VITE_GROQ_API_KEY;
+    
+  // 🚀 OPTIMIZATION: Return fallback reviews immediately for reliability
+  return getFallbackReviews(category, numberOfReviews, excludeReviews);
+
 
     if (!apiKey) {
       console.warn('[AI Review Service] API key not configured, using fallback reviews');
