@@ -46,7 +46,8 @@ export const generateAIReviews = async ({
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
-      },
+      },,
+        signal: AbortSignal.timeout(5000)
       body: JSON.stringify({
         businessDescription,
         category,
