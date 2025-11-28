@@ -1,4 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
+// v2 - Fixed API configuration
 
 const FALLBACK_REVIEWS_BY_CATEGORY: { [key: string]: string[] } = {
   'Auto Garage': [
