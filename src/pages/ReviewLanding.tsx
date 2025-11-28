@@ -75,9 +75,9 @@ const ReviewLanding = () => {
                     excludeReviews: [],
                         }
                   );
-            setAllSuggestions(reviews);
-            if (reviews.length > 0) {
+setAllSuggestions(reviews && reviews.length > 0 ? reviews : ['Professional service and genuine care for my vehicle. Highly satisfied!', 'Excellent work on my car maintenance. Pricing was fair and fair. Would recommend.', 'Outstanding service! Fixed it right the first time.']);            if (reviews.length > 0) {
               setSelectedSuggestion(reviews[0]);
+              // Also set the first suggestion immediately
               setCurrentSuggestionIndex(0);
             }
           } catch (error) {
