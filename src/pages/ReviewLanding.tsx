@@ -63,30 +63,18 @@ const { data: campaignData, error: campaignError } = await supabase
 
         console.log('Campaign loaded:', campaignData);
         setCampaign(campaignData);
+        
+    // Set default review suggestions (no AI generation)
+    const defaultSuggestions = [
+      'Professional service and genuine care for my vehicle. Highly satisfied!',
+      'Excellent work on my car maintenance. Pricing was fair and reasonable. Would recommend.',
+      'Outstanding service! Fixed it right the first time.'
+    ];
+    setAllSuggestions(defaultSuggestions);
+    setSelectedSuggestion(defaultSuggestions[0]);
+    setCurrentSuggestionIndex(0);
 
         // 🔹 NEW: Generate AI reviews based on business_description & category
-if (campaignData) {          try {
-const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
-        const reviews = await generateAIReviews({
- campaignData: campaignData.name || 'Professional Services', category,          numberOfReviews: 3,
-          excludeReviews: [],
-          signal: controller.signal
-        });
-        clearTimeout(timeoutId);
-const suggestionsToSet = reviews && reviews.length > 0 ? reviews : ['Professional service and genuine care for my vehicle. Highly satisfied!', 'Excellent work on my car maintenance. Pricing was fair and fair. Would recommend.', 'Outstanding service! Fixed it right the first time.'];
-            setAllSuggestions(suggestionsToSet);
-            setSelectedSuggestion(suggestionsToSet[0]);
-            setCurrentSuggestionIndex(0);
-          } catch (error) {
-            console.error('Failed to generate reviews:', error);
-            toast({
-              title: 'Error',
-              description: 'Failed to generate AI reviews. Please try again.',
-              variant: 'destructive',
-            });
-          }
-        }
 
         if (campaignData.location_id) {
           const { data: locationData } = await supabase
