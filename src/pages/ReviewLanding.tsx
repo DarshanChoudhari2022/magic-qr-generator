@@ -318,7 +318,7 @@ const suggestionsToSet = reviews && reviews.length > 0 ? reviews : ['Professiona
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-6">
-            {selectedSuggestion && (
+            {(
               <div className="p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-200 hover:border-indigo-400 transition-all">
                 <div className="flex items-start gap-3">
                   <Star className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
@@ -366,7 +366,6 @@ const suggestionsToSet = reviews && reviews.length > 0 ? reviews : ['Professiona
                             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                             Generating...
                           </>
-                        ) : (
                           <>
                             <Sparkles className="w-4 h-4 mr-2" />
                             More AI Reviews
@@ -379,13 +378,6 @@ const suggestionsToSet = reviews && reviews.length > 0 ? reviews : ['Professiona
               </div>
             )}
           </CardContent>
-            : (
-              <div className="p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-200">
-                <div className="flex items-center justify-center">
-                  <p className="text-gray-600 text-sm">Generating AI suggestions...</p>
-                </div>
-              </div>
-            )
         </Card>
 
         <Button
