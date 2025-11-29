@@ -314,7 +314,6 @@ const { data: campaignData, error: campaignError } = await supabase
                           <Check className="w-4 h-4" />
                           Copied!
                         </>
-                    </button>
 
                     {/* Controls for cycling & regenerating AI reviews */}
                     <div className="mt-4 flex flex-wrap gap-3">
