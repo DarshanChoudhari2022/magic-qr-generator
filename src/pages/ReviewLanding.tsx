@@ -44,7 +44,7 @@ const ReviewLanding = () => {
         }
 
 const { data: campaignData, error: campaignError } = await supabase
-    .from('review_campaigns')
+    .from('campaigns')
     .select(`
       *,
       profiles:business_id(business_description)
