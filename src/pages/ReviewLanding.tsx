@@ -43,11 +43,14 @@ const ReviewLanding = () => {
           return;
         }
 
-        const { data: campaignData, error: campaignError } = await supabase
-          .from('campaigns')
-          .select('*')
-          .eq('id', campaignId)
-          .single();
+const { data: campaignData, error: campaignError } = await supabase
+    .from('review_campaigns')
+    .select(`
+      *,
+      profiles:business_id(business_description)
+    `)
+    .eq('id', campaignId)
+    .single();
 
         if (campaignError || !campaignData) {
           console.error('Error loading campaign:', campaignError);
@@ -64,14 +67,12 @@ const ReviewLanding = () => {
         setCampaign(campaignData);
 
         // 🔹 NEW: Generate AI reviews based on business_description & category
-        if (campaignData.business_description) {
-          const category = campaignData.category || 'Professional Services';
+if (campaignData.profiles?.[0]?.business_description) {          const category = campaignData.category || 'Professional Services';
           try {
 const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
         const reviews = await generateAIReviews({
-          campaignData: campaignData.business_description,
-          category,
+campaignData: campaignData.profiles?.[0]?.business_description,          category,
           numberOfReviews: 3,
           excludeReviews: [],
           signal: controller.signal
