@@ -335,12 +335,6 @@ const suggestionsToSet = reviews && reviews.length > 0 ? reviews : ['Professiona
                           <Check className="w-4 h-4" />
                           Copied!
                         </>
-                      ) : (
-                        <>
-                          <Copy className="w-4 h-4" />
-                          Copy Review
-                        </>
-                      )}
                     </button>
 
                     {/* Controls for cycling & regenerating AI reviews */}
@@ -390,8 +384,6 @@ const suggestionsToSet = reviews && reviews.length > 0 ? reviews : ['Professiona
               <Loader2 className="w-5 h-5 animate-spin" />
               Processing...
             </>
-          ) : (
-            <>
               <ExternalLink className="w-5 h-5" />
               Leave Review on Google
             </>
