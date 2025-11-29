@@ -46,7 +46,6 @@ const ReviewLanding = () => {
 const { data: campaignData, error: campaignError } = await supabase
     .from('campaigns')
     .select(`
-      *,
       '*'    `)
     .eq('id', campaignId)
     .single();
