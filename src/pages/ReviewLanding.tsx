@@ -47,8 +47,7 @@ const { data: campaignData, error: campaignError } = await supabase
     .from('campaigns')
     .select(`
       *,
-      profiles:business_id(business_description)
-    `)
+      '*'    `)
     .eq('id', campaignId)
     .single();
 
@@ -67,13 +66,11 @@ const { data: campaignData, error: campaignError } = await supabase
         setCampaign(campaignData);
 
         // 🔹 NEW: Generate AI reviews based on business_description & category
-if (campaignData.profiles?.[0]?.business_description) {          const category = campaignData.category || 'Professional Services';
-          try {
+if (campaignData) {          try {
 const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
         const reviews = await generateAIReviews({
-campaignData: campaignData.profiles?.[0]?.business_description,          category,
-          numberOfReviews: 3,
+ campaignData: campaignData.name || 'Professional Services', category,          numberOfReviews: 3,
           excludeReviews: [],
           signal: controller.signal
         });
