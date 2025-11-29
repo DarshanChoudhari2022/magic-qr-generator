@@ -64,15 +64,6 @@ const { data: campaignData, error: campaignError } = await supabase
         console.log('Campaign loaded:', campaignData);
         setCampaign(campaignData);
         
-    // Set default review suggestions (no AI generation)
-    const defaultSuggestions = [
-      'Professional service and genuine care for my vehicle. Highly satisfied!',
-      'Excellent work on my car maintenance. Pricing was fair and reasonable. Would recommend.',
-      'Outstanding service! Fixed it right the first time.'
-    ];
-    setAllSuggestions(defaultSuggestions);
-    setSelectedSuggestion(defaultSuggestions[0]);
-    setCurrentSuggestionIndex(0);
 
         // 🔹 NEW: Generate AI reviews based on business_description & category
 
