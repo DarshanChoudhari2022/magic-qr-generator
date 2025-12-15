@@ -116,7 +116,7 @@ const Auth = () => {
       // Show email confirmation message
       toast({
         title: "Check your email!",
-        description: `We've sent a confirmation link to ${validated.email}. Click it to verify your account.",
+        description: `We've sent a confirmation link to ${validated.email}. Click it to verify your account`,
       });
 
       // Clear form
