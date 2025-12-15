@@ -12,14 +12,16 @@ const ReviewLanding = () => {
   const { campaignId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  
   const [campaign, setCampaign] = useState(null);
   const [location, setLocation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState(null);
-  const [currentSuggestionIndex, setCurrentSuggestionIndex] = useState(0);
-  const [reviews, setReviews] = useState([]);
+  const [currentReview, setCurrentReview] = useState('');
+  const [usedReviewHashes, setUsedReviewHashes] = useState(new Set());
   const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [allGeneratedReviews, setAllGeneratedReviews] = useState([]);
 
   useEffect(() => {
     const loadCampaign = async () => {
@@ -61,26 +63,23 @@ const ReviewLanding = () => {
             .select('*')
             .eq('id', campaignData.location_id)
             .single();
-
           if (locationData) {
             setLocation(locationData);
           }
         }
 
-        // Generate AI reviews
-        await generateAIReviews(campaignData);
+        // Generate initial review
+        await generateNewReview(campaignData);
 
         // Record scan event
         supabase
           .from('scan_events')
-          .insert([
-            {
-              campaign_id: campaignId,
-              event_type: 'scan',
-              device_type: /Mobile|Android|iPhone/.test(navigator.userAgent) ? 'mobile' : 'desktop',
-              timestamp: new Date().toISOString(),
-            },
-          ])
+          .insert([{
+            campaign_id: campaignId,
+            event_type: 'scan',
+            device_type: /Mobile|Android|iPhone/.test(navigator.userAgent) ? 'mobile' : 'desktop',
+            timestamp: new Date().toISOString(),
+          }])
           .then(() => {
             console.log('Scan event recorded');
           })
@@ -103,39 +102,51 @@ const ReviewLanding = () => {
     loadCampaign();
   }, [campaignId, toast]);
 
-  const generateAIReviews = async (campaignData: any) => {
+  const hashReview = (review: string): string => {
+    return review.toLowerCase().trim().slice(0, 50);
+  };
+
+  const generateNewReview = async (campaignData: any) => {
     try {
       setReviewsLoading(true);
-      console.log('[ReviewLanding] Starting AI review generation');
-      
+      console.log('[ReviewLanding] Generating new unique review');
+
       const businessName = campaignData?.name || location?.name || 'Our Business';
       const businessCategory = campaignData?.category || location?.category || 'service';
 
-      console.log('[ReviewLanding] Requesting reviews for:', businessName, businessCategory);
-
+      // Generate 5 reviews at a time to have pool of unique reviews
       const generatedReviews = await aiReviewService.generateReviews({
         businessName,
         businessCategory,
-        numberOfReviews: 3,
+        numberOfReviews: 5,
         tone: 'professional',
         language: 'English',
       });
 
-      console.log('[ReviewLanding] Generated reviews:', generatedReviews);
-      setReviews(generatedReviews);
-      setCurrentSuggestionIndex(0);
+      console.log('[ReviewLanding] Generated pool of reviews:', generatedReviews.length);
+      setAllGeneratedReviews(generatedReviews);
 
-      if (generatedReviews.length > 0) {
-        toast({
-          title: 'Reviews Generated',
-          description: 'AI-powered review suggestions are ready!',
-        });
+      // Find first unused review
+      const unusedReview = generatedReviews.find(
+        (review) => !usedReviewHashes.has(hashReview(review))
+      );
+
+      if (unusedReview) {
+        setCurrentReview(unusedReview);
+        setUsedReviewHashes((prev) => new Set([...prev, hashReview(unusedReview)]));
+      } else {
+        setCurrentReview(generatedReviews[0] || 'Loading review...');
       }
+
+      toast({
+        title: 'Review Generated',
+        description: 'New AI-powered suggestion ready!',
+      });
     } catch (error) {
-      console.error('[ReviewLanding] Error generating reviews:', error);
+      console.error('[ReviewLanding] Error generating review:', error);
       toast({
         title: 'Note',
-        description: 'Using fallback reviews. AI service may not be configured.',
+        description: 'Using fallback reviews.',
         variant: 'default',
       });
     } finally {
@@ -143,11 +154,11 @@ const ReviewLanding = () => {
     }
   };
 
-  const handleCopyToClipboard = (text, index) => {
+  const handleCopyToClipboard = (text: string) => {
     navigator.clipboard
       .writeText(text)
       .then(() => {
-        setCopiedIndex(index);
+        setCopiedIndex(0);
         toast({
           title: 'Copied!',
           description: 'Review suggestion copied to clipboard',
@@ -164,10 +175,9 @@ const ReviewLanding = () => {
       });
   };
 
-  const handleNextSuggestion = () => {
-    if (reviews.length === 0) return;
-    const nextIndex = (currentSuggestionIndex + 1) % reviews.length;
-    setCurrentSuggestionIndex(nextIndex);
+  const handleNextSuggestion = async () => {
+    if (!campaign) return;
+    await generateNewReview(campaign);
   };
 
   const handleOpenGoogleReview = async () => {
@@ -196,13 +206,11 @@ const ReviewLanding = () => {
       setGenerating(true);
       supabase
         .from('conversion_events')
-        .insert([
-          {
-            campaign_id: campaignId,
-            converted: true,
-            timestamp: new Date().toISOString(),
-          },
-        ])
+        .insert([{
+          campaign_id: campaignId,
+          converted: true,
+          timestamp: new Date().toISOString(),
+        }])
         .then(() => {
           console.log('Conversion event recorded');
         })
@@ -258,7 +266,6 @@ const ReviewLanding = () => {
 
   const businessName = campaign?.name || location?.name || 'Our Business';
   const logoUrl = location?.logo_url;
-  const currentReview = reviews[currentSuggestionIndex] || 'Loading review suggestion...';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-blue-50 p-4">
@@ -276,7 +283,6 @@ const ReviewLanding = () => {
               <p className="mt-1">Share your experience on Google</p>
             </CardDescription>
           </CardHeader>
-
           <CardContent className="space-y-6">
             <Card className="bg-indigo-50 border-indigo-200">
               <CardHeader>
@@ -289,10 +295,10 @@ const ReviewLanding = () => {
                 <p className="text-sm text-gray-700 mb-4">{currentReview}</p>
                 <div className="flex gap-2">
                   <Button
-                    onClick={() => handleCopyToClipboard(currentReview, 0)}
+                    onClick={() => handleCopyToClipboard(currentReview)}
                     variant="outline"
                     className="flex-1 flex items-center gap-2"
-                    disabled={reviewsLoading || reviews.length === 0}
+                    disabled={reviewsLoading || !currentReview}
                   >
                     {copiedIndex === 0 ? (
                       <>
@@ -310,7 +316,7 @@ const ReviewLanding = () => {
                     onClick={handleNextSuggestion}
                     variant="outline"
                     className="flex-1"
-                    disabled={reviewsLoading || reviews.length === 0}
+                    disabled={reviewsLoading}
                   >
                     Next
                   </Button>
