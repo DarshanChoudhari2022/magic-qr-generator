@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Building2, LogOut, Plus, QrCode, TrendingUp } from "lucide-react", MessageSquare;
+import { Building2, LogOut, Plus, QrCode, TrendingUp, MessageSquare } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 
 const Dashboard = () => {
