@@ -65,6 +65,7 @@ setCampaign(safeData);
  }
  // Generate first review
  await generateNewReview(safeData);
+   setLoading(false); // Allow page to render even if campaign data fetch fails
  // Record scan event
  supabase
  .from('scan_events')
