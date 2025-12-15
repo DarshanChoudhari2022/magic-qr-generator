@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Building2, LogOut, Plus, QrCode, TrendingUp } from "lucide-react";
+import { Building2, LogOut, Plus, QrCode, TrendingUp } from "lucide-react", MessageSquare;
 import type { User } from "@supabase/supabase-js";
 
 const Dashboard = () => {
@@ -111,6 +111,10 @@ const Dashboard = () => {
             <Plus className="h-4 w-4 mr-2" />
             New Campaign
           </Button>
+                      <Button onClick={() => navigate("/auto-reply")} className="bg-purple-600 hover:bg-purple-700">
+              <MessageSquare className="h-4 w-4 mr-2" />
+              Auto-Reply
+            </Button>
         </div>
 
         {campaigns.length === 0 ? (
