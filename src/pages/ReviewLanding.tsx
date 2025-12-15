@@ -19,10 +19,6 @@ const ReviewLanding = () => {
  const [generating, setGenerating] = useState(false);
  const [copiedIndex, setCopiedIndex] = useState(null);
  const [currentReview, setCurrentReview] = useState('');
- const [reviewsLoading, setReviewsLoading] = useState(false);
- const [reviewIndex, setReviewIndex] = useState(0);
- const [reviewPool, setReviewPool] = useState([]);
- 
  const campaignCacheRef = useRef(new Map());
 
  useEffect(() => {
@@ -65,7 +61,9 @@ const ReviewLanding = () => {
  setLocation(locationData);
  }
  }
- await generateAndCacheReviews(campaignData, campaignId);
+ // Generate first review
+ await generateNewReview(campaignData);
+ // Record scan event
  supabase
  .from('scan_events')
  .insert([{
@@ -74,12 +72,7 @@ const ReviewLanding = () => {
  device_type: /Mobile|Android|iPhone/.test(navigator.userAgent) ? 'mobile' : 'desktop',
  timestamp: new Date().toISOString(),
  }])
- .then(() => {
- console.log('Scan event recorded');
- })
- .catch((err) => {
- console.error('Error recording scan:', err);
- });
+ .catch((err) => console.error('Error recording scan:', err));
  setLoading(false);
  } catch (error) {
  console.error('Error in loadCampaign:', error);
@@ -94,49 +87,27 @@ const ReviewLanding = () => {
  loadCampaign();
  }, [campaignId, toast]);
 
- const hashReview = (review: string): string => {
- return review.toLowerCase().trim().slice(0, 50);
- };
-
- const generateAndCacheReviews = async (campaignData: any, campaignKey: string) => {
+ const generateNewReview = async (campaignData: any) => {
  try {
- setReviewsLoading(true);
- console.log('[ReviewLanding] Generating reviews for campaign:', campaignKey);
+ setGenerating(true);
+ console.log('[ReviewLanding] Generating fresh review on-demand');
  const businessName = campaignData?.name || location?.name || 'Our Business';
  const businessCategory = campaignData?.category || location?.category || 'service';
  
- if (!campaignCacheRef.current.has(campaignKey)) {
- campaignCacheRef.current.set(campaignKey, new Set());
- }
- const campaignCache = campaignCacheRef.current.get(campaignKey);
- 
- const generatedReviews = await aiReviewService.generateReviews({
+ // Generate ONE fresh review every time (NO batching/pooling)
+ const reviews = await aiReviewService.generateReviews({
  businessName,
  businessCategory,
- numberOfReviews: 15,
+ numberOfReviews: 1,
  tone: 'professional',
  language: 'English',
  });
 
- console.log('[ReviewLanding] Generated', generatedReviews.length, 'reviews');
- 
- const newReviews = generatedReviews.filter(review => {
- const hash = hashReview(review);
- return !campaignCache.has(hash);
- });
-
- if (newReviews.length > 0) {
- setReviewPool(prevPool => [...prevPool, ...newReviews]);
- newReviews.forEach(review => {
- campaignCache.add(hashReview(review));
- });
- 
- if (!currentReview) {
- setCurrentReview(newReviews[0]);
- setReviewIndex(0);
- }
- } else if (generatedReviews.length > 0 && !currentReview) {
- setCurrentReview(generatedReviews[0]);
+ if (reviews && reviews.length > 0) {
+ setCurrentReview(reviews[0]);
+ console.log('[ReviewLanding] ✅ Fresh review generated:', reviews[0].substring(0, 60) + '...');
+ } else {
+ setCurrentReview('Unable to generate review. Please try again.');
  }
 
  toast({
@@ -144,14 +115,14 @@ const ReviewLanding = () => {
  description: 'New AI-powered suggestion ready!',
  });
  } catch (error) {
- console.error('[ReviewLanding] Error:', error);
+ console.error('[ReviewLanding] Error generating review:', error);
  toast({
- title: 'Note',
- description: 'Using fallback reviews.',
- variant: 'default',
+ title: 'Error',
+ description: 'Failed to generate review. Please try again.',
+ variant: 'destructive',
  });
  } finally {
- setReviewsLoading(false);
+ setGenerating(false);
  }
  };
 
@@ -177,26 +148,8 @@ const ReviewLanding = () => {
  };
 
  const handleNextSuggestion = async () => {
- if (!campaign || !campaignId) return;
- 
- if (reviewIndex + 1 >= reviewPool.length) {
- console.log('[ReviewLanding] Pool exhausted, generating new batch');
- await generateAndCacheReviews(campaign, campaignId);
- if (reviewIndex + 1 < reviewPool.length) {
- setCurrentReview(reviewPool[reviewIndex + 1]);
- setReviewIndex(reviewIndex + 1);
- }
- } else {
- const nextIndex = reviewIndex + 1;
- if (nextIndex < reviewPool.length) {
- setCurrentReview(reviewPool[nextIndex]);
- setReviewIndex(nextIndex);
- toast({
- title: 'Next Review',
- description: 'Showing next AI-powered suggestion',
- });
- }
- }
+ if (!campaign) return;
+ await generateNewReview(campaign);
  };
 
  const handleOpenGoogleReview = async () => {
@@ -226,9 +179,7 @@ const ReviewLanding = () => {
  converted: true,
  timestamp: new Date().toISOString(),
  }])
- .catch((err) => {
- console.error('Error recording conversion:', err);
- });
+ .catch((err) => console.error('Error recording conversion:', err));
  window.open(googleReviewUrl, '_blank');
  toast({
  title: 'Success',
@@ -299,7 +250,7 @@ const ReviewLanding = () => {
  <CardHeader>
  <CardTitle className="text-base flex items-center gap-2">
  Suggested Review
- {reviewsLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+ {generating && <Loader2 className="h-4 w-4 animate-spin" />}
  </CardTitle>
  </CardHeader>
  <CardContent>
@@ -309,7 +260,7 @@ const ReviewLanding = () => {
  onClick={() => handleCopyToClipboard(currentReview)}
  variant="outline"
  className="flex-1 flex items-center gap-2"
- disabled={reviewsLoading || !currentReview}
+ disabled={generating || !currentReview}
  >
  {copiedIndex === 0 ? (
  <>
@@ -327,7 +278,7 @@ const ReviewLanding = () => {
  onClick={handleNextSuggestion}
  variant="outline"
  className="flex-1"
- disabled={reviewsLoading}
+ disabled={generating}
  >
  Next
  </Button>
@@ -358,7 +309,7 @@ const ReviewLanding = () => {
  </div>
  <div className="flex items-start gap-2">
  <Star className="h-4 w-4 text-yellow-500 mt-0.5 flex-shrink-0" />
- <span>Takes just 30 seconds to leave a review</span>
+ <span>Unlimited reviews generated on-demand</span>
  </div>
  <div className="flex items-start gap-2">
  <Star className="h-4 w-4 text-yellow-500 mt-0.5 flex-shrink-0" />
