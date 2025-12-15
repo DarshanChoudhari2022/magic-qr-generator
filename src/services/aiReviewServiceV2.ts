@@ -16,6 +16,7 @@ interface AIReviewRequest {
   numberOfReviews?: number;
   tone?: 'professional' | 'casual' | 'enthusiastic';
   language?: string;
+    businessDescription?: string;
 }
 
 const CATEGORY_KEYWORDS: Record<string, string[]> = {
@@ -142,6 +143,7 @@ class AIReviewService {
     businessName: string,
     businessCategory: string,
     tone: string = 'professional'
+        businessDescription?: string
   ): string {
     const normalizedCategory = businessCategory.toLowerCase().replace(/\s+/g, '_');
     const categoryKeywords = this.getCategoryKeywords(businessCategory);
@@ -152,6 +154,8 @@ Write ONE authentic, compelling Google review for:
 Business: "${businessName}"
 Category: ${businessCategory}
 Tone: ${tone}
+Business Description: ${businessDescription || 'Not specified'}
+Context ID: ${timestamp}
 Context ID: ${timestamp}
 
 KEY REQUIREMENTS:
@@ -187,7 +191,8 @@ Generate ONE unique review NOW (JSON format):
           const prompt = this.createBusinessSpecificPrompt(
             request.businessName,
             request.businessCategory,
-            tone
+            tone,
+                  request.businessDescription
           );
           
           console.log(`[AIReviewService] API call attempt ${attempt + 1}/${maxRetries}`);
