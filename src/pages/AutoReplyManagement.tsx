@@ -52,11 +52,7 @@ const AutoReplyManagement = () => {
       setCampaigns(data || []);
     } catch (error) {
       console.error('Error loading campaigns:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load campaigns',
-        variant: 'destructive',
-      });
+          setCampaigns([]);
     } finally {
       setLoading(false);
     }
