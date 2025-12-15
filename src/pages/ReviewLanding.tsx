@@ -39,30 +39,32 @@ const { data: campaignData, error: campaignError } = await supabase
  .select('*')
  .eq('id', campaignId)
  .maybeSingle();
- if (campaignError || !campaignData) {
- console.error('Error loading campaign:', campaignError);
- toast({
- title: 'Campaign Not Found',
- description: 'This review campaign is no longer available',
- variant: 'destructive',
- });
- setLoading(false);
- return;
+if (campaignError) {
+ console.error('[ReviewLanding] Campaign fetch failed, using fallback:', campaignError);
  }
- console.log('[ReviewLanding] Campaign loaded:', campaignData);
- setCampaign(campaignData);
- if (campaignData.location_id) {
+ // Use fallback campaign if fetch failed - allows page to render with AI reviews
+ const safeData = campaignData || {
+ id: campaignId,
+ name: 'Help Us Improve!',
+ category: 'service',
+ description: 'Share your feedback',
+ google_review_url: '',
+ location_id: null,
+ };}
+ console.log('[ReviewLanding] Campaign safeData:', campaignData);
+ setCampaignsafeDatacampaignData);
+ if (safeData.location_id) {
  const { data: locationData } = await supabase
  .from('locations')
  .select('*')
- .eq('id', campaignData.location_id)
+ .eq('id', safeData.location_id)
  .single();
  if (locationData) {
  setLocation(locationData);
  }
  }
  // Generate first review
- await generateNewReview(campaignData);
+ await generateNewReview(safeData);
  // Record scan event
  supabase
  .from('scan_events')
