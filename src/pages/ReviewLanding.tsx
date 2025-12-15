@@ -34,11 +34,11 @@ const ReviewLanding = () => {
  setLoading(false);
  return;
  }
- const { data: campaignData, error: campaignError } = await supabase
+const { data: campaignData, error: campaignError } = await supabase
  .from('campaigns')
  .select('*')
  .eq('id', campaignId)
- .single();
+ .maybeSingle();
  if (campaignError || !campaignData) {
  console.error('Error loading campaign:', campaignError);
  toast({
@@ -75,7 +75,8 @@ const ReviewLanding = () => {
  .catch((err) => console.error('Error recording scan:', err));
  setLoading(false);
  } catch (error) {
- console.error('Error in loadCampaign:', error);
+ console.error('[ReviewLanding] Campaign fetch error:', { campaignId, error: campaignError });
+  
  toast({
  title: 'Error',
  description: 'Failed to load campaign details',
