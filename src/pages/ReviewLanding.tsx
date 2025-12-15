@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -19,11 +19,11 @@ const ReviewLanding = () => {
  const [generating, setGenerating] = useState(false);
  const [copiedIndex, setCopiedIndex] = useState(null);
  const [currentReview, setCurrentReview] = useState('');
- const [usedReviewHashes, setUsedReviewHashes] = useState(new Set());
  const [reviewsLoading, setReviewsLoading] = useState(false);
- const [allGeneratedReviews, setAllGeneratedReviews] = useState([]);
  const [reviewIndex, setReviewIndex] = useState(0);
  const [reviewPool, setReviewPool] = useState([]);
+ 
+ const campaignCacheRef = useRef(new Map());
 
  useEffect(() => {
  const loadCampaign = async () => {
@@ -53,7 +53,7 @@ const ReviewLanding = () => {
  setLoading(false);
  return;
  }
- console.log('Campaign loaded:', campaignData);
+ console.log('[ReviewLanding] Campaign loaded:', campaignData);
  setCampaign(campaignData);
  if (campaignData.location_id) {
  const { data: locationData } = await supabase
@@ -65,9 +65,7 @@ const ReviewLanding = () => {
  setLocation(locationData);
  }
  }
- // Generate initial review
- await generateAndCacheReviews(campaignData);
- // Record scan event
+ await generateAndCacheReviews(campaignData, campaignId);
  supabase
  .from('scan_events')
  .insert([{
@@ -100,47 +98,45 @@ const ReviewLanding = () => {
  return review.toLowerCase().trim().slice(0, 50);
  };
 
- const generateAndCacheReviews = async (campaignData: any) => {
+ const generateAndCacheReviews = async (campaignData: any, campaignKey: string) => {
  try {
  setReviewsLoading(true);
- console.log('[ReviewLanding] Generating new batch of reviews');
+ console.log('[ReviewLanding] Generating reviews for campaign:', campaignKey);
  const businessName = campaignData?.name || location?.name || 'Our Business';
  const businessCategory = campaignData?.category || location?.category || 'service';
  
- // Generate 10 reviews at a time for better variety
+ if (!campaignCacheRef.current.has(campaignKey)) {
+ campaignCacheRef.current.set(campaignKey, new Set());
+ }
+ const campaignCache = campaignCacheRef.current.get(campaignKey);
+ 
  const generatedReviews = await aiReviewService.generateReviews({
  businessName,
  businessCategory,
- numberOfReviews: 10,
+ numberOfReviews: 15,
  tone: 'professional',
  language: 'English',
  });
 
- console.log('[ReviewLanding] Generated batch of', generatedReviews.length, 'reviews');
+ console.log('[ReviewLanding] Generated', generatedReviews.length, 'reviews');
  
- // Filter out duplicates from current pool
  const newReviews = generatedReviews.filter(review => {
  const hash = hashReview(review);
- return !usedReviewHashes.has(hash);
+ return !campaignCache.has(hash);
  });
 
  if (newReviews.length > 0) {
- // Add to pool and mark as used
  setReviewPool(prevPool => [...prevPool, ...newReviews]);
  newReviews.forEach(review => {
- setUsedReviewHashes(prev => new Set([...prev, hashReview(review)]));
+ campaignCache.add(hashReview(review));
  });
  
- // Set first new review if not already displaying one
  if (!currentReview) {
  setCurrentReview(newReviews[0]);
  setReviewIndex(0);
  }
- } else {
- console.warn('[ReviewLanding] All generated reviews are duplicates');
- if (generatedReviews.length > 0 && !currentReview) {
+ } else if (generatedReviews.length > 0 && !currentReview) {
  setCurrentReview(generatedReviews[0]);
- }
  }
 
  toast({
@@ -148,7 +144,7 @@ const ReviewLanding = () => {
  description: 'New AI-powered suggestion ready!',
  });
  } catch (error) {
- console.error('[ReviewLanding] Error generating review:', error);
+ console.error('[ReviewLanding] Error:', error);
  toast({
  title: 'Note',
  description: 'Using fallback reviews.',
@@ -181,14 +177,16 @@ const ReviewLanding = () => {
  };
 
  const handleNextSuggestion = async () => {
- if (!campaign) return;
+ if (!campaign || !campaignId) return;
  
- // Check if we need more reviews from the pool
  if (reviewIndex + 1 >= reviewPool.length) {
- console.log('[ReviewLanding] Review pool exhausted, generating new batch');
- await generateAndCacheReviews(campaign);
+ console.log('[ReviewLanding] Pool exhausted, generating new batch');
+ await generateAndCacheReviews(campaign, campaignId);
+ if (reviewIndex + 1 < reviewPool.length) {
+ setCurrentReview(reviewPool[reviewIndex + 1]);
+ setReviewIndex(reviewIndex + 1);
+ }
  } else {
- // Move to next review in pool
  const nextIndex = reviewIndex + 1;
  if (nextIndex < reviewPool.length) {
  setCurrentReview(reviewPool[nextIndex]);
@@ -211,7 +209,6 @@ const ReviewLanding = () => {
  return;
  }
  const googleReviewUrl = location?.google_review_url || campaign?.google_review_url;
- console.log('Google review URL:', googleReviewUrl);
  if (!googleReviewUrl) {
  toast({
  title: 'Error',
@@ -229,9 +226,6 @@ const ReviewLanding = () => {
  converted: true,
  timestamp: new Date().toISOString(),
  }])
- .then(() => {
- console.log('Conversion event recorded');
- })
  .catch((err) => {
  console.error('Error recording conversion:', err);
  });
