@@ -52,7 +52,7 @@ if (campaignError) {
  location_id: null,
  };
  console.log('[ReviewLanding] Campaign safeData:', campaignData);
- setCampaignsafeDatacampaignData);
+setCampaign(safeData);
  if (safeData.location_id) {
  const { data: locationData } = await supabase
  .from('locations')
