@@ -1,5 +1,4 @@
 'use client';
-
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,24 +6,20 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Star, ExternalLink, Loader2, Copy, Check } from 'lucide-react';
-
-const STATIC_REVIEWS = [
-  "Outstanding service! The team was professional, responsive, and delivered excellent results. Would highly recommend.",
-  "Great experience from start to finish. The attention to detail and quality of work exceeded my expectations. 5 stars!",
-  "Impressed with the professionalism and expertise. Highly satisfied with the service provided. Definitely coming back!",
-];
+import { aiReviewService } from '@/services/aiReviewServiceV2';
 
 const ReviewLanding = () => {
   const { campaignId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-
   const [campaign, setCampaign] = useState(null);
   const [location, setLocation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [currentSuggestionIndex, setCurrentSuggestionIndex] = useState(0);
+  const [reviews, setReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
 
   useEffect(() => {
     const loadCampaign = async () => {
@@ -66,10 +61,14 @@ const ReviewLanding = () => {
             .select('*')
             .eq('id', campaignData.location_id)
             .single();
+
           if (locationData) {
             setLocation(locationData);
           }
         }
+
+        // Generate AI reviews
+        await generateAIReviews(campaignData);
 
         // Record scan event
         supabase
@@ -104,6 +103,46 @@ const ReviewLanding = () => {
     loadCampaign();
   }, [campaignId, toast]);
 
+  const generateAIReviews = async (campaignData: any) => {
+    try {
+      setReviewsLoading(true);
+      console.log('[ReviewLanding] Starting AI review generation');
+      
+      const businessName = campaignData?.name || location?.name || 'Our Business';
+      const businessCategory = campaignData?.category || location?.category || 'service';
+
+      console.log('[ReviewLanding] Requesting reviews for:', businessName, businessCategory);
+
+      const generatedReviews = await aiReviewService.generateReviews({
+        businessName,
+        businessCategory,
+        numberOfReviews: 3,
+        tone: 'professional',
+        language: 'English',
+      });
+
+      console.log('[ReviewLanding] Generated reviews:', generatedReviews);
+      setReviews(generatedReviews);
+      setCurrentSuggestionIndex(0);
+
+      if (generatedReviews.length > 0) {
+        toast({
+          title: 'Reviews Generated',
+          description: 'AI-powered review suggestions are ready!',
+        });
+      }
+    } catch (error) {
+      console.error('[ReviewLanding] Error generating reviews:', error);
+      toast({
+        title: 'Note',
+        description: 'Using fallback reviews. AI service may not be configured.',
+        variant: 'default',
+      });
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
+
   const handleCopyToClipboard = (text, index) => {
     navigator.clipboard
       .writeText(text)
@@ -126,7 +165,8 @@ const ReviewLanding = () => {
   };
 
   const handleNextSuggestion = () => {
-    const nextIndex = (currentSuggestionIndex + 1) % STATIC_REVIEWS.length;
+    if (reviews.length === 0) return;
+    const nextIndex = (currentSuggestionIndex + 1) % reviews.length;
     setCurrentSuggestionIndex(nextIndex);
   };
 
@@ -218,7 +258,7 @@ const ReviewLanding = () => {
 
   const businessName = campaign?.name || location?.name || 'Our Business';
   const logoUrl = location?.logo_url;
-  const currentReview = STATIC_REVIEWS[currentSuggestionIndex];
+  const currentReview = reviews[currentSuggestionIndex] || 'Loading review suggestion...';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-blue-50 p-4">
@@ -240,7 +280,10 @@ const ReviewLanding = () => {
           <CardContent className="space-y-6">
             <Card className="bg-indigo-50 border-indigo-200">
               <CardHeader>
-                <CardTitle className="text-base">Suggested Review</CardTitle>
+                <CardTitle className="text-base flex items-center gap-2">
+                  Suggested Review
+                  {reviewsLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-gray-700 mb-4">{currentReview}</p>
@@ -249,6 +292,7 @@ const ReviewLanding = () => {
                     onClick={() => handleCopyToClipboard(currentReview, 0)}
                     variant="outline"
                     className="flex-1 flex items-center gap-2"
+                    disabled={reviewsLoading || reviews.length === 0}
                   >
                     {copiedIndex === 0 ? (
                       <>
@@ -262,7 +306,12 @@ const ReviewLanding = () => {
                       </>
                     )}
                   </Button>
-                  <Button onClick={handleNextSuggestion} variant="outline" className="flex-1">
+                  <Button
+                    onClick={handleNextSuggestion}
+                    variant="outline"
+                    className="flex-1"
+                    disabled={reviewsLoading || reviews.length === 0}
+                  >
                     Next
                   </Button>
                 </div>
