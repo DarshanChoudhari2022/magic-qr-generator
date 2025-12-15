@@ -142,7 +142,7 @@ class AIReviewService {
   private createBusinessSpecificPrompt(
     businessName: string,
     businessCategory: string,
-    tone: string = 'professional'
+    tone: string = 'professional',
         businessDescription?: string
   ): string {
     const normalizedCategory = businessCategory.toLowerCase().replace(/\s+/g, '_');
@@ -155,7 +155,6 @@ Business: "${businessName}"
 Category: ${businessCategory}
 Tone: ${tone}
 Business Description: ${businessDescription || 'Not specified'}
-Context ID: ${timestamp}
 Context ID: ${timestamp}
 
 KEY REQUIREMENTS:
