@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Building2, Mail, Lock, User } from "lucide-react";
+import { Building2, Mail, Lock, User, CheckCircle2 } from "lucide-react";
 import { z } from "zod";
 
 const signupSchema = z.object({
@@ -24,18 +24,46 @@ const loginSchema = z.object({
 const Auth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
-
+  
+  // Email confirmation state
+  const [emailConfirmed, setEmailConfirmed] = useState(false);
+  const [confirmationEmail, setConfirmationEmail] = useState("");
+  const [confirmationTimer, setConfirmationTimer] = useState(5);
+  
   // Signup form state
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
   const [businessName, setBusinessName] = useState("");
-
+  
   // Login form state
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
 
   useEffect(() => {
+    // Check if coming from email confirmation
+    if (searchParams.get('confirmed') === 'true') {
+      const email = searchParams.get('email') || '';
+      setEmailConfirmed(true);
+      setConfirmationEmail(email);
+      
+      // Start countdown timer
+      const timer = setInterval(() => {
+        setConfirmationTimer(prev => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            // Redirect to signin after countdown
+            navigate('/signin');
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => clearInterval(timer);
+    }
+
     // Check if user is already logged in
     const checkUser = async () => {
       try {
@@ -57,12 +85,11 @@ const Auth = () => {
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, searchParams]);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
     try {
       // Validate form data
       const validated = signupSchema.parse({
@@ -72,11 +99,12 @@ const Auth = () => {
       });
 
       // Sign up with Supabase Auth
+      // Redirect to confirmation page instead of dashboard
       const { error, data } = await supabase.auth.signUp({
         email: validated.email,
         password: validated.password,
         options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`,
+          emailRedirectTo: `${window.location.origin}?confirmed=true&email=${encodeURIComponent(validated.email)}`,
           data: {
             business_name: validated.businessName,
           },
@@ -85,16 +113,17 @@ const Auth = () => {
 
       if (error) throw error;
 
-      // Success toast
+      // Show email confirmation message
       toast({
-        title: "Account created!",
-        description: "Welcome to your AI Review Collection platform. Redirecting to dashboard...",
+        title: "Check your email!",
+        description: `We've sent a confirmation link to ${validated.email}. Click it to verify your account.",
       });
 
-      // Auto navigate after signup
-      if (data.session) {
-        navigate("/dashboard");
-      }
+      // Clear form
+      setSignupEmail("");
+      setSignupPassword("");
+      setBusinessName("");
+
     } catch (error) {
       if (error instanceof z.ZodError) {
         toast({
@@ -117,7 +146,6 @@ const Auth = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
     try {
       // Validate form data
       const validated = loginSchema.parse({
@@ -161,6 +189,55 @@ const Auth = () => {
       setLoading(false);
     }
   };
+
+  // Email Confirmation Success View
+  if (emailConfirmed) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 p-4">
+        <Card className="w-full max-w-md shadow-2xl">
+          <CardHeader className="space-y-1 text-center">
+            <div className="flex justify-center mb-4">
+              <div className="p-3 bg-gradient-to-r from-green-500 to-blue-500 rounded-full animate-pulse">
+                <CheckCircle2 className="h-8 w-8 text-white" />
+              </div>
+            </div>
+            <CardTitle className="text-3xl font-bold text-green-600">
+              Email Confirmed!
+            </CardTitle>
+            <CardDescription className="text-base">
+              Your email has been verified successfully.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <p className="text-sm text-gray-700">
+                <span className="font-semibold">Email:</span> {confirmationEmail}
+              </p>
+              <p className="text-sm text-gray-600 mt-2">
+                Your account is now active and ready to use!
+              </p>
+            </div>
+
+            <div className="text-center space-y-2">
+              <p className="text-sm text-gray-600">
+                Redirecting to Sign In in
+              </p>
+              <p className="text-4xl font-bold text-purple-600">
+                {confirmationTimer}
+              </p>
+            </div>
+
+            <Button
+              onClick={() => navigate('/signin')}
+              className="w-full bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600"
+            >
+              Go to Sign In Now
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 p-4">
