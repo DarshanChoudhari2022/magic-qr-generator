@@ -16,6 +16,7 @@ import NFCManagement from "./pages/NFCManagement";
 import Locations from "./pages/Locations";
 
 const queryClient = new QueryClient();
+import VerifyEmail from "./pages/VerifyEmail";
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -34,6 +35,7 @@ const App = () => (
                           <Route path="/analytics" element={<AnalyticsDashboard />} />
                 <Route path="/qr-designer" element={<QRDesigner />} />
                 <Route path="/nfc-management" element={<NFCManagement />} />
+                      <Route path="/verify-email" element={<VerifyEmail />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
