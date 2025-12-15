@@ -1,11 +1,13 @@
 /**
  * AI Review Service V2 - Production-Ready Groq API Integration
+ * CRITICAL FIX: Proper business-specific review generation with deduplication
  * 
- * Fixed version that works in production
- * - Uses fetch directly instead of import.meta.env
- * - Better error handling and logging
- * - Validates API responses properly
- * - Falls back gracefully
+ * Features:
+ * - Generates business-specific reviews based on category
+ * - Advanced prompt engineering for each business type
+ * - Proper deduplication to prevent repeated reviews
+ * - unlimited generation capability
+ * - SEO-optimized reviews for better Google ranking
  */
 
 interface AIReviewRequest {
@@ -22,17 +24,81 @@ interface AIReviewResponse {
   model: string;
 }
 
-const FALLBACK_REVIEWS = [
-  'Professional service and genuine care. Highly satisfied with the experience!',
-  'Excellent work on my inquiry. Fair pricing and quick response. Would recommend.',
-  'Outstanding service! Fixed my issue right the first time. Thank you!',
-  'Great attention to detail. Professional team that truly cares about quality.',
-  'Exceptional experience from start to finish. Will definitely return!',
-];
+const CATEGORY_KEYWORDS: Record<string, string[]> = {
+  'software_development': [
+    'development team',
+    'innovative solutions',
+    'technical expertise',
+    'clean code',
+    'timely delivery',
+    'agile methodology',
+    'bug-free',
+    'scalable architecture',
+    'professional developers',
+    'custom solutions',
+    'excellent communication',
+    'problem-solving',
+  ],
+  'restaurant': [
+    'delicious food',
+    'friendly staff',
+    'ambiance',
+    'menu variety',
+    'fresh ingredients',
+    'fast service',
+    'taste',
+    'value for money',
+  ],
+  'automotive': [
+    'professional mechanics',
+    'quality service',
+    'transparent pricing',
+    'quick turnaround',
+    'car care',
+    'expertise',
+    'parts quality',
+    'customer satisfaction',
+  ],
+  'healthcare': [
+    'compassionate care',
+    'professional staff',
+    'clean facilities',
+    'patient-friendly',
+    'knowledgeable doctors',
+    'quick appointments',
+    'modern equipment',
+  ],
+  'salon_spa': [
+    'skilled stylists',
+    'relaxing atmosphere',
+    'quality products',
+    'professional service',
+    'beauty expertise',
+    'cleanliness',
+    'friendly staff',
+  ],
+  'real_estate': [
+    'professional agents',
+    'market knowledge',
+    'great properties',
+    'smooth transactions',
+    'fair pricing',
+    'local expertise',
+  ],
+  'education': [
+    'knowledgeable teachers',
+    'quality education',
+    'student support',
+    'interactive classes',
+    'curriculum excellence',
+    'individual attention',
+  ],
+};
 
 class AIReviewService {
   private apiUrl: string = 'https://api.groq.com/openai/v1/chat/completions';
   private apiKey: string | null = null;
+  private generatedReviewsCache: Map<string, Set<string>> = new Map();
 
   constructor() {
     this.initializeApiKey();
@@ -40,8 +106,6 @@ class AIReviewService {
 
   private initializeApiKey(): void {
     try {
-      // Try multiple ways to get the API key
-      // 1. From import.meta.env (Vite)
       const viteKey = (import.meta.env as any)?.VITE_GROQ_API_KEY;
       if (viteKey && viteKey.length > 0) {
         this.apiKey = viteKey;
@@ -49,7 +113,6 @@ class AIReviewService {
         return;
       }
 
-      // 2. From window object (if injected)
       const windowKey = (window as any).__GROQ_API_KEY__;
       if (windowKey && windowKey.length > 0) {
         this.apiKey = windowKey;
@@ -57,137 +120,177 @@ class AIReviewService {
         return;
       }
 
-      console.warn('[AIReviewService] No Groq API key found in environment or window');
+      console.warn('[AIReviewService] No Groq API key found');
     } catch (error) {
       console.error('[AIReviewService] Error during API key initialization:', error);
     }
   }
 
-  async generateReviews(request: AIReviewRequest): Promise<string[]> {
-    console.log('[AIReviewService] generateReviews called for:', request.businessName, request.businessCategory);
-    
-    if (!this.apiKey) {
-      console.warn('[AIReviewService] No API key available, using fallback reviews');
-      return this.getFallbackReviews(request.numberOfReviews || 3);
-    }
-
-    try {
-      const reviews = await this.callGroqAPI(request);
-      console.log('[AIReviewService] Successfully got', reviews.length, 'AI-generated reviews');
-      return reviews;
-    } catch (error) {
-      console.error('[AIReviewService] Error calling Groq API:', error);
-      return this.getFallbackReviews(request.numberOfReviews || 3);
-    }
+  private getCategoryKeywords(category: string): string {
+    const normalizedCategory = category.toLowerCase().replace(/\s+/g, '_');
+    const keywords = CATEGORY_KEYWORDS[normalizedCategory] || CATEGORY_KEYWORDS['software_development'];
+    return keywords.join(', ');
   }
 
-  private async callGroqAPI(request: AIReviewRequest): Promise<string[]> {
-    const numberOfReviews = request.numberOfReviews || 3;
-    const tone = request.tone || 'professional';
-    const language = request.language || 'English';
+  private createBusinessSpecificPrompt(
+    businessName: string,
+    businessCategory: string,
+    numberOfReviews: number
+  ): string {
+    const categoryKeywords = this.getCategoryKeywords(businessCategory);
 
-    const prompt = `You are a professional review writer. Generate exactly ${numberOfReviews} unique, authentic Google reviews for "${request.businessName}", a ${request.businessCategory} business.
+    return `You are an expert Google review writer specializing in ${businessCategory} industry.
 
-IMPORTANT INSTRUCTIONS:
-1. Each review must be 1-2 sentences (30-120 words)
-2. Tone: ${tone}
-3. Language: ${language}
-4. Make each review UNIQUE and DIFFERENT
-5. Highlight specific positive aspects relevant to ${request.businessCategory}
-6. Sound natural and authentic, NOT promotional
-7. RESPOND WITH ONLY A JSON ARRAY OF STRINGS
-8. NO OTHER TEXT, NO MARKDOWN, NO EXPLANATIONS
+IMPORTANT: Generate REALISTIC, AUTHENTIC, and BUSINESS-SPECIFIC reviews for:
+Business Name: "${businessName}"
+Business Type: ${businessCategory}
+
+KEY REQUIREMENTS:
+1. ONLY mention ${businessCategory}-specific aspects like: ${categoryKeywords}
+2. NEVER mention garage services, auto repair, or any generic/wrong business type
+3. Each review MUST be 1-2 sentences (30-100 words)
+4. Highly specific to ${businessCategory} industry
+5. Make reviews feel authentic - mix positive specific details with genuine customer perspective
+6. NEVER repeat similar reviews - create UNIQUE perspectives
+7. Include specific benefits customers care about for ${businessCategory}
+8. Professional tone, natural language, SEO-optimized
+9. Respond with ONLY a JSON array of review strings
+10. NO other text, NO explanations, NO markdown
 
 Example format:
-["review 1 here", "review 2 here", "review 3 here"]
+["review 1", "review 2", "review 3"]
 
-Generate ${numberOfReviews} reviews now:`;
+Generate ${numberOfReviews} UNIQUE, BUSINESS-SPECIFIC reviews for ${businessName} (${businessCategory}) NOW:`;
+  }
 
-    console.log('[AIReviewService] Calling Groq API with prompt');
+  private isReviewDuplicate(review: string, businessKey: string): boolean {
+    const hash = this.hashReview(review);
+    const usedHashes = this.generatedReviewsCache.get(businessKey) || new Set();
+    return usedHashes.has(hash);
+  }
 
-    const response = await fetch(this.apiUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'mixtral-8x7b-32768',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are an expert at writing authentic Google reviews. ALWAYS respond with ONLY a valid JSON array of review strings. NEVER include any other text.',
-          },
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-        temperature: 0.8,
-        max_tokens: 2000,
-      }),
-    });
+  private hashReview(review: string): string {
+    return review
+      .toLowerCase()
+      .trim()
+      .slice(0, 100)
+      .replace(/[^a-z0-9]/g, '');
+  }
 
-    console.log('[AIReviewService] API Response status:', response.status);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[AIReviewService] API error response:', errorText);
-      throw new Error(`Groq API Error: ${response.status} - ${errorText}`);
+  private markReviewAsUsed(review: string, businessKey: string): void {
+    if (!this.generatedReviewsCache.has(businessKey)) {
+      this.generatedReviewsCache.set(businessKey, new Set());
     }
+    const hash = this.hashReview(review);
+    this.generatedReviewsCache.get(businessKey)!.add(hash);
+  }
 
-    const data = await response.json();
-    console.log('[AIReviewService] Parsed response data');
+  async generateReviews(request: AIReviewRequest): Promise<string[]> {
+    console.log('[AIReviewService] Generating reviews for:', request.businessName, request.businessCategory);
 
-    const content = data.choices?.[0]?.message?.content;
-    if (!content) {
-      throw new Error('No content in API response');
+    if (!this.apiKey) {
+      console.warn('[AIReviewService] No API key available');
+      return this.getFallbackReviews(request.numberOfReviews || 3);
     }
-
-    console.log('[AIReviewService] Raw API content (first 300 chars):', content.substring(0, 300));
-
-    // Parse JSON response
-    let reviews: string[] = [];
 
     try {
-      // Try to extract JSON array from response
-      const jsonMatch = content.match(/\[\s*["'].*["']\s*\]/s);
-      if (jsonMatch) {
-        const jsonStr = jsonMatch[0];
-        console.log('[AIReviewService] Extracted JSON:', jsonStr.substring(0, 200));
-        reviews = JSON.parse(jsonStr);
-      } else {
-        // If no array found, try parsing entire content
-        reviews = JSON.parse(content);
+      const businessKey = `${request.businessName}_${request.businessCategory}`.toLowerCase();
+      const numberOfReviews = request.numberOfReviews || 10;
+
+      const prompt = this.createBusinessSpecificPrompt(
+        request.businessName,
+        request.businessCategory,
+        numberOfReviews
+      );
+
+      console.log('[AIReviewService] Calling Groq API with business-specific prompt');
+
+      const response = await fetch(this.apiUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'mixtral-8x7b-32768',
+          messages: [
+            {
+              role: 'system',
+              content: `You are a professional Google review writer specializing in ${request.businessCategory} business reviews. Generate ONLY authentic, business-specific reviews. NEVER include irrelevant business types or generic content.`,
+            },
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+          temperature: 0.9,
+          max_tokens: 3000,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[AIReviewService] API error:', response.status, errorText);
+        return this.getFallbackReviews(request.numberOfReviews || 3);
       }
-    } catch (parseError) {
-      console.warn('[AIReviewService] JSON parsing failed, trying manual extraction');
-      // Fallback: split by lines and extract quoted strings
-      const lines = content.split('\n');
-      reviews = lines
-        .map(line => {
-          const match = line.match(/["']([^"']*)["']/);
-          return match ? match[1].trim() : null;
-        })
-        .filter((r): r is string => r !== null && r.length > 10 && r.length < 500)
-        .slice(0, numberOfReviews);
+
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content;
+
+      if (!content) {
+        console.error('[AIReviewService] No content in response');
+        return this.getFallbackReviews(request.numberOfReviews || 3);
+      }
+
+      console.log('[AIReviewService] Raw API response (first 500 chars):', content.substring(0, 500));
+
+      // Parse JSON array
+      let reviews: string[] = [];
+      try {
+        const jsonMatch = content.match(/\[.*\]/s);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          reviews = Array.isArray(parsed) ? parsed.filter(r => typeof r === 'string') : [];
+        }
+      } catch (parseError) {
+        console.warn('[AIReviewService] JSON parse failed, extracting reviews manually');
+        const lines = content.split('\n').filter(l => l.trim().length > 10);
+        reviews = lines
+          .map(line => line.replace(/^["']|["']$|^\d+\.\s*/g, '').trim())
+          .filter(line => line.length > 20 && line.length < 500)
+          .slice(0, numberOfReviews);
+      }
+
+      // Filter unique reviews
+      const uniqueReviews = reviews.filter(review => {
+        const isDuplicate = this.isReviewDuplicate(review, businessKey);
+        if (!isDuplicate) {
+          this.markReviewAsUsed(review, businessKey);
+        }
+        return !isDuplicate;
+      });
+
+      console.log('[AIReviewService] Generated', uniqueReviews.length, 'unique reviews for', request.businessCategory);
+
+      return uniqueReviews.length > 0 ? uniqueReviews : this.getFallbackReviews(request.numberOfReviews || 3);
+    } catch (error) {
+      console.error('[AIReviewService] Error generating reviews:', error);
+      return this.getFallbackReviews(request.numberOfReviews || 3);
     }
-
-    if (!Array.isArray(reviews) || reviews.length === 0) {
-      throw new Error('Invalid review format or empty array');
-    }
-
-    const validReviews = reviews
-      .filter(r => typeof r === 'string' && r.length > 10)
-      .slice(0, numberOfReviews);
-
-    console.log('[AIReviewService] Final reviews count:', validReviews.length);
-    return validReviews;
   }
 
   private getFallbackReviews(count: number): string[] {
-    console.log('[AIReviewService] Returning fallback reviews, count:', count);
-    return FALLBACK_REVIEWS.slice(0, count);
+    const fallbacks = [
+      'Great service! Highly satisfied with the experience.',
+      'Professional team with excellent attention to detail.',
+      'Exceeded expectations from start to finish.',
+      'Highly recommended for quality and reliability.',
+      'Outstanding experience! Will definitely return.',
+      'Impressed with the professionalism and expertise.',
+      'Best choice for their expertise and service quality.',
+      'Fast, reliable, and professional service delivery.',
+    ];
+    return fallbacks.slice(0, count);
   }
 }
 
