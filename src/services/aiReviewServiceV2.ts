@@ -1,7 +1,8 @@
 /**
- * AI Review Service V2 - Production-Ready Architecture
- * 
+ * AI Review Service V2 - Production-Ready Architecture with Groq Integration
+ *
  * This service provides AI-powered review generation with:
+ * - Groq API integration (free, fast LLM API)
  * - Rate limiting and request throttling
  * - Error handling and retry logic
  * - Request caching to avoid duplicate calls
@@ -152,6 +153,7 @@ class AIReviewService {
   private config: RateLimitConfig;
   private apiKey: string | null = null;
   private enabled: boolean = false;
+  private apiUrl: string = 'https://api.groq.com/openai/v1/chat/completions';
 
   constructor(config?: Partial<RateLimitConfig>) {
     this.config = { ...DEFAULT_RATE_LIMIT_CONFIG, ...config };
@@ -165,8 +167,14 @@ class AIReviewService {
    */
   private initializeFromEnv(): void {
     // Set API key from environment (not directly passed for security)
-    this.apiKey = process.env.REACT_APP_AI_API_KEY || null;
-    this.enabled = !!this.apiKey && process.env.REACT_APP_AI_SERVICE_ENABLED === 'true';
+    this.apiKey = import.meta.env.VITE_GROQ_API_KEY || null;
+    this.enabled = !!this.apiKey;
+    
+    if (this.enabled) {
+      console.log('[AIReviewService] Groq API initialized successfully');
+    } else {
+      console.warn('[AIReviewService] Groq API key not found in environment variables');
+    }
   }
 
   /**
@@ -220,15 +228,103 @@ class AIReviewService {
   }
 
   /**
-   * Call AI API (to be implemented with actual AI provider)
+   * Call Groq API to generate reviews
    */
   private async callAIAPI(request: AIReviewRequest): Promise<AIReviewResponse> {
-    // This is a placeholder. Implement with your chosen AI provider
-    // Examples: OpenAI, Google AI, Anthropic Claude, Hugging Face, etc.
-    
-    throw new Error(
-      'AI API integration not implemented. Please configure your AI provider and set REACT_APP_AI_API_KEY'
-    );
+    if (!this.apiKey) {
+      throw new Error('Groq API key not configured');
+    }
+
+    const numberOfReviews = request.numberOfReviews || 3;
+    const tone = request.tone || 'professional';
+    const language = request.language || 'English';
+
+    const prompt = `Generate ${numberOfReviews} unique and authentic Google reviews for a ${request.businessCategory} business called "${request.businessName}".
+
+Requirements:
+- Each review should be ${tone} in tone
+- Reviews should be in ${language}
+- Each review should be 1-2 sentences
+- Reviews should highlight specific positive aspects
+- Reviews should feel natural and authentic, not overly promotional
+- Each review should be different from the others
+
+Format your response as a JSON array of strings, like this:
+["review 1", "review 2", "review 3"]
+
+Respond ONLY with the JSON array, no other text.`;
+
+    try {
+      const response = await fetch(this.apiUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'mixtral-8x7b-32768',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a helpful assistant that generates authentic, natural-sounding Google reviews. Always respond with valid JSON arrays only.',
+            },
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+          temperature: 0.7,
+          max_tokens: 1000,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Groq API error: ${response.status} - ${JSON.stringify(errorData)}`);
+      }
+
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content;
+
+      if (!content) {
+        throw new Error('No content in Groq API response');
+      }
+
+      // Parse the JSON response
+      let reviews: string[] = [];
+      try {
+        reviews = JSON.parse(content);
+      } catch (parseError) {
+        // If JSON parsing fails, try to extract reviews from the content
+        console.warn('[AIReviewService] Failed to parse JSON response, attempting fallback parsing', content);
+        // Split by common delimiters and filter
+        reviews = content
+          .split(/[\n\r]+/)
+          .map((line: string) => line.replace(/^[\d\-\.\)\s]+/, '').trim())
+          .filter((line: string) => line.length > 10 && line.length < 500)
+          .slice(0, numberOfReviews);
+      }
+
+      if (!Array.isArray(reviews) || reviews.length === 0) {
+        throw new Error('Invalid review format from Groq API');
+      }
+
+      const result: AIReviewResponse = {
+        reviews: reviews.slice(0, numberOfReviews),
+        timestamp: Date.now(),
+        model: 'mixtral-8x7b-32768',
+        usage: {
+          promptTokens: data.usage?.prompt_tokens || 0,
+          completionTokens: data.usage?.completion_tokens || 0,
+          totalTokens: data.usage?.total_tokens || 0,
+        },
+      };
+
+      return result;
+    } catch (error) {
+      console.error('[AIReviewService] Groq API call failed:', error);
+      throw error;
+    }
   }
 
   /**
