@@ -19,6 +19,17 @@ interface AIReviewRequest {
 }
 
 const CATEGORY_KEYWORDS: Record<string, string[]> = {
+  'software_development': [
+    'development team', 'innovative solutions', 'technical expertise', 'clean code',
+    'timely delivery', 'agile methodology', 'bug-free', 'scalable architecture',
+    'professional developers', 'custom solutions', 'excellent communication',
+    'problem-solving', 'code quality', 'API integration', 'testing', 'deployment'
+  ],
+  'professional_services': [
+    'professional team', 'expertise', 'quality service', 'timely delivery',
+    'client satisfaction', 'innovative solutions', 'reliable', 'communication',
+    'problem-solving', 'results-oriented', 'attention to detail', 'skilled team'
+  ],
   'automotive': [
     'professional mechanics', 'quality service', 'transparent pricing', 'quick turnaround',
     'car care', 'expertise', 'parts quality', 'customer satisfaction', 'diagnostics',
@@ -36,6 +47,26 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
 };
 
 const FALLBACK_REVIEWS: Record<string, string[]> = {
+  'software_development': [
+    'Excellent technical team with deep expertise. Delivered exactly what we needed on time.',
+    'Outstanding code quality and professional developers. Highly recommend for custom projects.',
+    'Innovative solutions and great communication. Perfect agile methodology implementation.',
+    'They solved complex problems with scalable architecture. Very satisfied!',
+    'Clean code and thorough testing. Professional team that delivers on promises.',
+    'API integration was seamless. Great technical expertise and support.',
+    'Timely delivery and excellent communication. Best development team we worked with.',
+    'Custom solutions perfectly tailored to our needs. Highly skilled developers.'
+  ],
+  'professional_services': [
+    'Excellent professional service with great attention to detail. Highly satisfied.',
+    'Expert team with deep expertise. Delivered exceptional results on time.',
+    'Outstanding communication and problem-solving skills. Highly recommended.',
+    'Professional, reliable service with innovative solutions. Very pleased.',
+    'Experts in their field. Great communication and superior results.',
+    'They understood our needs perfectly. Delivered exceptional value.',
+    'Professional team with proven expertise. Outstanding customer support.',
+    'Timely, professional service with excellent problem-solving. Highly recommend.'
+  ],
   'automotive': [
     'Professional mechanics who explained everything clearly. Fair pricing and quality work.',
     'Excellent service and fair rates. Great mechanics who really care about their work.',
@@ -92,11 +123,12 @@ class AIReviewService {
   }
   
   private getRotatingFallback(category: string, businessKey: string): string {
-    const reviews = FALLBACK_REVIEWS[category.toLowerCase()] || FALLBACK_REVIEWS['service'];
+    const normalizedCategory = category.toLowerCase().replace(/\s+/g, '_');
+    const reviews = FALLBACK_REVIEWS[normalizedCategory] || FALLBACK_REVIEWS['service'];
     let index = this.fallbackIndex.get(businessKey) || 0;
     const review = reviews[index % reviews.length];
     this.fallbackIndex.set(businessKey, index + 1);
-    console.log(`[AIReviewService] Using fallback review ${(index % reviews.length) + 1}/${reviews.length}`);
+    console.log(`[AIReviewService] Using fallback review ${(index % reviews.length) + 1}/${reviews.length} for ${normalizedCategory}`);
     return review;
   }
   
@@ -111,6 +143,7 @@ class AIReviewService {
     businessCategory: string,
     tone: string = 'professional'
   ): string {
+    const normalizedCategory = businessCategory.toLowerCase().replace(/\s+/g, '_');
     const categoryKeywords = this.getCategoryKeywords(businessCategory);
     const timestamp = Date.now() % 1000;
     
@@ -136,7 +169,7 @@ Generate ONE unique review NOW (JSON format):
   }
   
   async generateReviews(request: AIReviewRequest): Promise<string[]> {
-    console.log('[AIReviewService] Generating review for:', request.businessName, request.businessCategory);
+    console.log('[AIReviewService] Generating review for:', request.businessName, 'Category:', request.businessCategory);
     
     if (!this.apiKey) {
       console.warn('[AIReviewService] No API key - using rotating fallback');
@@ -204,7 +237,7 @@ Generate ONE unique review NOW (JSON format):
               const review = parsed.review?.trim();
               
               if (review && review.length > 20) {
-                console.log('[AIReviewService] ✅ Generated review:', review.substring(0, 60) + '...');
+                console.log('[AIReviewService] ✅ Generated AI review:', review.substring(0, 60) + '...');
                 return [review];
               }
             }
@@ -214,7 +247,7 @@ Generate ONE unique review NOW (JSON format):
             if (textMatch) {
               const review = textMatch[1]?.trim();
               if (review && review.length > 20) {
-                console.log('[AIReviewService] ✅ Extracted review:', review.substring(0, 60) + '...');
+                console.log('[AIReviewService] ✅ Extracted AI review:', review.substring(0, 60) + '...');
                 return [review];
               }
             }
