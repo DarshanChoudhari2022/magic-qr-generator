@@ -17,6 +17,7 @@ import Locations from "./pages/Locations";
 
 const queryClient = new QueryClient();
 import VerifyEmail from "./pages/VerifyEmail";
+import AutoReplyManagement from "./pages/AutoReplyManagement";
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -36,6 +37,7 @@ const App = () => (
                 <Route path="/qr-designer" element={<QRDesigner />} />
                 <Route path="/nfc-management" element={<NFCManagement />} />
                       <Route path="/verify-email" element={<VerifyEmail />} />
+                      <Route path="/auto-reply" element={<AutoReplyManagement />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
