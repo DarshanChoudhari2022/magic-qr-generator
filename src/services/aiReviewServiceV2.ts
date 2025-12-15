@@ -100,6 +100,24 @@ const FALLBACK_REVIEWS: Record<string, string[]> = {
   ]
 };
 
+// Map form categories to fallback review keys
+const normalizeCategoryForFallback = (formCategory: string): string => {
+  const categoryMap: Record<string, string> = {
+    'Restaurant/Cafe': 'restaurant',
+    'Retail Store': 'service',
+    'Healthcare': 'professional_services',
+    'Automotive': 'automotive',
+    'Real Estate': 'service',
+    'Professional Services': 'professional_services',
+    'Fitness': 'service',
+    'Beauty Salon': 'service',
+    'General Business': 'service',
+    'Software Development': 'software_development',
+  };
+  const normalized = categoryMap[formCategory];
+  return normalized || 'service';
+};
+
 class AIReviewService {
   private apiUrl: string = 'https://api.groq.com/openai/v1/chat/completions';
   private apiKey: string | null = null;
@@ -124,7 +142,7 @@ class AIReviewService {
   }
   
   private getRotatingFallback(category: string, businessKey: string): string {
-    const normalizedCategory = category.toLowerCase().replace(/\s+/g, '_');
+const normalizedCategory = normalizeCategoryForFallback(category);
     const reviews = FALLBACK_REVIEWS[normalizedCategory] || FALLBACK_REVIEWS['service'];
     let index = this.fallbackIndex.get(businessKey) || 0;
     const review = reviews[index % reviews.length];
@@ -134,7 +152,7 @@ class AIReviewService {
   }
   
   private getCategoryKeywords(category: string): string {
-    const normalizedCategory = category.toLowerCase().replace(/\s+/g, '_');
+const normalizedCategory = normalizeCategoryForFallback(category);
     const keywords = CATEGORY_KEYWORDS[normalizedCategory] || CATEGORY_KEYWORDS['service'];
     return keywords.slice(0, 6).join(', ');
   }
@@ -145,7 +163,7 @@ class AIReviewService {
     tone: string = 'professional',
         businessDescription?: string
   ): string {
-    const normalizedCategory = businessCategory.toLowerCase().replace(/\s+/g, '_');
+const normalizedCategory = normalizeCategoryForFallback(businessCategory);
     const categoryKeywords = this.getCategoryKeywords(businessCategory);
     const timestamp = Date.now() % 1000;
     
