@@ -50,7 +50,7 @@ if (campaignError) {
  description: 'Share your feedback',
  google_review_url: '',
  location_id: null,
- };}
+ };
  console.log('[ReviewLanding] Campaign safeData:', campaignData);
  setCampaignsafeDatacampaignData);
  if (safeData.location_id) {
