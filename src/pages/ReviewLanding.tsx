@@ -86,7 +86,8 @@ const { data: campaignData, error: campaignError } = await supabase
  }
  };
  loadCampaign();
- }, [campaignId, toast]);
+ }, [campaignId]);
+ 
 
  const generateNewReview = async (campaignData: any) => {
  try {
